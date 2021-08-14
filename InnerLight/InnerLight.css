@@ -1,0 +1,40 @@
+body{
+    padding: 0px;
+    margin: 0px;
+    overflow: hidden;
+}
+#background{
+    background-color: black ;
+  }
+  button{
+    border: 1px solid rgb(243, 242, 242);
+    color: rgb(240, 240, 240);
+    background-color: black;
+    position: static;
+    
+}
+button:hover{
+    border: 1px dashed #ff84f9;
+    color: rgb(255, 235, 235);
+}
+#innerLightNav{
+  display: block;
+  text-align: center;
+}
+.settings{
+    
+    font-size: large;
+    height: 3.2vh;
+    width: auto;
+    position: absolute;
+    margin: 1vh;
+    top: 0;
+    left:0;
+    color:black;
+    border: 4px black dashed;
+   
+  }
+  .settings:hover{
+    border: 3px black solid;
+    border-style: dashed;
+  }

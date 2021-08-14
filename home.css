@@ -73,7 +73,7 @@ body{
     background: var(--color-main);
   }
   .apps:hover{
-    box-shadow: 0px 0px 5px var(--color-accent);
+    box-shadow: 0px 0px 1px var(--color-accent);
   }
   .thumb{
     margin-top: 5px;
