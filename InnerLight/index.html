@@ -22,12 +22,12 @@
 <body>
   <div id = "background">
     <div id = "innerLightNav">
-      <button (click)="route('')"  >X</button>
-      <button (click)="route('/innerLight')" fill ="clear" >o</button>
-      <button (click)="route('/prism')" fill ="clear" >ooo</button>
-      <button (click)="route('/rectangle')" fill ="clear" >/ | \</button>
-      <button (click)="route('/triangle')" fill ="clear" >[ ]</button>
-      <button (click)="route('/lotusSquare')" fill ="clear" >< ^ ></button>
+      <button onclick ="goTo('../')" style = "position:absolute; left: 0; border: 4px dashed white;">X</button>
+      <button onclick ="changePattern(0,'lotus')" fill ="clear" >< ^ ></button>
+      <button onclick ="changePattern(1,'circle')" fill ="clear" >o</button>
+      <button onclick ="changePattern(2,'prism')" fill ="clear" >ooo</button>
+      <button onclick ="changePattern(3,'rect')" fill ="clear" >/ | \</button>
+      <button onclick ="changePattern(4,'square')" fill ="clear" >[ ]</button>
     </div>
     <div id = "outter"><div id = "vis"> </div></div>
   </div>

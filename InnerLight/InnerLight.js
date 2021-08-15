@@ -1,24 +1,66 @@
 
   let width;
   let height;
+  let shouldCreate = [true,true,false,false,false];
+  let shouldMove = true;
+  let svg;
       document.addEventListener("DOMContentLoaded", function(){
           width = window.innerWidth;
           height = window.innerHeight;
           console.log(height);
-          let svg = d3.select("#vis").append("svg")
+          svg = d3.select("#vis").append("svg")
             .attr("width", Math.ceil(width/10)*10)
             .attr("height", Math.ceil(height/10)*10);
-          //createLotus(svg);
-          createSquare(svg);
-          //createCircle(svg);
+          createLotus(svg);
+          //createSquare(svg);
+          createCircle(svg);
           //createRect(svg);
-          createPrism(svg);
-          
+          //createPrism(svg);
+          document.addEventListener('keydown', logKey);
+          const buttons = document.getElementsByTagName('button');
+          buttons[1].classList.add('buttonActive');
+          buttons[2].classList.add('buttonActive');
+
       });
-  function changePattern(){
+  function changePattern(index, shape){
+    shouldCreate[index] = !shouldCreate[index];
+    const buttons = document.getElementsByTagName('button');
     
+    if(!shouldCreate[index]){
+      buttons[index+1].classList.remove('buttonActive');
+      const currentShape = document.getElementsByClassName(shape);
+      let lengthShape = currentShape.length -1;
+       while( lengthShape >= 0){
+        currentShape[lengthShape].remove();
+        lengthShape--;
+      }
+    }else{
+      buttons[index+1].classList.add('buttonActive');
+      if(shape === 'lotus'){
+        createLotus(svg);
+      }
+      if(shape === 'square'){
+        createSquare(svg);
+      }
+      if(shape === 'circle'){
+        createCircle(svg);
+      }
+      if(shape === 'rect'){
+        createRect(svg);
+      }
+      if(shape === 'prism'){
+        createPrism(svg);
+      }
+    }
   }
-  
+  function logKey(e){
+    if(e.code === "KeyP"){
+      shouldMove = !shouldMove;
+    }
+  }
+  function goTo(page){
+    window.location.href = page;
+  }
   function createLotus(svg){
   const z = 50,
         x = width/ z,
@@ -39,14 +81,15 @@
       lotusScale = 4;
     
     while(counter<70){
-        svg.selectAll("polyline")
+        svg.selectAll(".lotus")
         .data(d3.range(counter))
         .enter().append("polyline")
         .style("stroke", "white")
         .style("stroke-width", ogLineSize)
         .attr("points", getPercentCoord(cSetPercent)) 
         .attr("fill","none")
-        .attr("stroke-linecap", "square") 
+        .attr("class","lotus")
+        .attr("stroke-linecap", "round") 
         .on("mouseover", mouseover);
         counter++;
     }
@@ -131,6 +174,7 @@
     return newStringTemp; 
   }
   function mouseover(i) {
+    if(!shouldMove){return;} 
       this.parentNode.appendChild(this);
       d3.select(this)
           .style("stroke", "white")
@@ -175,13 +219,14 @@
           opacP = .2;
         
         while(counter<80){
-        svg.selectAll("polyline")
+        svg.selectAll(".square")
           .data(d3.range(counter))
           .enter().append("polyline")
           .style("stroke", "white")
           .style("stroke-width", ogLineSize)
           .attr("points", getPercentCoord(cSetPercent)) 
           .attr("fill","none")
+          .attr("class","square")
           .attr("stroke-linecap", "square") 
           .on("mouseover", mouseover);
           counter++;
@@ -235,6 +280,7 @@
         return newStringTemp; 
       }
       function mouseover(i) {
+        if(!shouldMove){return;} 
         this.parentNode.appendChild(this);
         d3.select(this)
             .style("stroke", "white")
@@ -271,7 +317,7 @@ let hue = 0,
       angle = 0,
       newSize = 10;
 let size = 10;  
-    svg.selectAll("rect")
+    svg.selectAll(".rect")
       .data(d3.range(x * y))
       .enter().append("rect")
       .attr("width",sizeIncreaseW)
@@ -279,6 +325,7 @@ let size = 10;
       .attr("x", newSquares)
       .attr("y",  newSquaresHeight)
       .attr("stroke","white")
+      .attr("class","rect")
       .attr("stroke-width",baseSizeSquare)
       .attr("fill","none")
       .on("mouseover", mouseover);
@@ -315,6 +362,7 @@ let size = 10;
       }
       
       function mouseover(i) {
+        if(!shouldMove){return;} 
         this.parentNode.appendChild(this);
     
         d3.select(this)
@@ -362,7 +410,7 @@ let hue = 0,
     centerLocation = 2,
     size = 10; 
            
- svg.selectAll("circle")
+ svg.selectAll(".prism")
     .data(d3.range(x*y))
     .enter().append("circle")
     .attr("cx", getCenterWidth)
@@ -370,6 +418,7 @@ let hue = 0,
     .attr("r", sizeIncrease)
     .attr("fill","none")
     .attr("stroke","black")
+    .attr("class","prism")
     .attr("stroke-width",".5vh")
     .on("mouseover", mouseover);
 
@@ -420,8 +469,8 @@ function translate(i) {
 }
 
 function mouseover(i) {
+  if(!shouldMove){return;} 
   this.parentNode.appendChild(this);
-
   d3.select(this)
       .style("stroke-width"," .3vh")
       .style("stroke", "white")
@@ -454,7 +503,7 @@ let hue = 0,
     hueBody = 0,
     vhTen = height*.05;
 let size = 10;  
- svg.selectAll("circle")
+ svg.selectAll(".circle")
     .data(d3.range(x * y))
     .enter().append("circle")
     .attr("cx", width/2)
@@ -462,6 +511,7 @@ let size = 10;
     .attr("r",sizeIncrease)
     .attr("fill","none")
     .attr("stroke","white")
+    .attr("class","circle")
     .style("stroke-width"," 2px")
 
     .on("mouseover", mouseover);
@@ -482,6 +532,7 @@ function translate(i) {
 }
 
 function mouseover(i) {
+  if(!shouldMove){return;} 
   this.parentNode.appendChild(this);
 
   d3.select(this)
