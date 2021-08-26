@@ -1,0 +1,16 @@
+#background{
+    height: 100%;
+    width: 100%;
+    background-color: red;
+}
+.innerLightButton{
+    border: 1px solid rgb(17, 17, 17);
+    color: rgb(0, 0, 0);
+    background-color: none;
+    position: static;
+    
+}
+.innerLightButton:hover{
+    border: 1px dashed #1b1b1b;
+    color: rgb(255, 124, 124);
+}

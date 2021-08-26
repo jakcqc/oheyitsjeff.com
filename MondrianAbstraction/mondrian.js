@@ -7,6 +7,9 @@ let width, height, w, h, z, hue, x, y;
         createAbstraction();
         
       });
+      function goTo(page){
+        window.location.href = page;
+      }
 function createAbstraction(){
   
         h = height;
