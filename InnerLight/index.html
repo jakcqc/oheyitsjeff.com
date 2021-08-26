@@ -22,12 +22,19 @@
 <body>
   <div id = "background">
     <div id = "innerLightNav">
-      <button onclick ="goTo('../')" style = "position:absolute; left: 0; border: 4px dashed white;">X</button>
-      <button onclick ="changePattern(0,'lotus')" fill ="clear" >< ^ ></button>
-      <button onclick ="changePattern(1,'circle')" fill ="clear" >o</button>
-      <button onclick ="changePattern(2,'prism')" fill ="clear" >ooo</button>
-      <button onclick ="changePattern(3,'rect')" fill ="clear" >/ | \</button>
-      <button onclick ="changePattern(4,'square')" fill ="clear" >[ ]</button>
+      <button id = "button-exit" onclick ="goTo('../')" >X</button>
+      <button onclick ="changePattern(0,'lotus')"  >< ^ ></button>
+      <button onclick ="changePattern(1,'circle')"  >o</button>
+      <button onclick ="changePattern(2,'prism')"  >ooo</button>
+      <button onclick ="changePattern(3,'rect')"  >/ | \</button>
+      <button onclick ="changePattern(4,'square')"  >[ ]</button>
+      <button id = "info" onclick ="information()"  >i</button>
+    </div>
+    <div id = "info-box" onclick = "closeInfoBox()">
+      <!-- <div id = "close">
+          x
+      </div> -->
+      press p to pause
     </div>
     <div id = "outter"><div id = "vis"> </div></div>
   </div>
