@@ -4,6 +4,7 @@
   let shouldCreate = [true,true,false,false,false];
   let shouldMove = true;
   let svg;
+  let shouldClose = false;
       document.addEventListener("DOMContentLoaded", function(){
           width = window.innerWidth;
           height = window.innerHeight;
@@ -12,14 +13,11 @@
             .attr("width", Math.ceil(width/10)*10)
             .attr("height", Math.ceil(height/10)*10);
           createLotus(svg);
-          //createSquare(svg);
           createCircle(svg);
-          //createRect(svg);
-          //createPrism(svg);
           document.addEventListener('keydown', logKey);
           const buttons = document.getElementsByTagName('button');
-          buttons[1].classList.add('buttonActive');
-          buttons[2].classList.add('buttonActive');
+          buttons[1].classList.add('button-active');
+          buttons[2].classList.add('button-active');
 
       });
   function changePattern(index, shape){
@@ -27,7 +25,7 @@
     const buttons = document.getElementsByTagName('button');
     
     if(!shouldCreate[index]){
-      buttons[index+1].classList.remove('buttonActive');
+      buttons[index+1].classList.remove('button-active');
       const currentShape = document.getElementsByClassName(shape);
       let lengthShape = currentShape.length -1;
        while( lengthShape >= 0){
@@ -35,7 +33,7 @@
         lengthShape--;
       }
     }else{
-      buttons[index+1].classList.add('buttonActive');
+      buttons[index+1].classList.add('button-active');
       if(shape === 'lotus'){
         createLotus(svg);
       }
@@ -53,9 +51,31 @@
       }
     }
   }
+  function information(){
+    if(!shouldClose){
+      document.getElementById('info-box').style.display = 'block';
+      
+    }else{
+      document.getElementById('info-box').style.display = 'none';
+    }
+    shouldClose = !shouldClose
+    
+  }
+  function closeInfoBox(){
+    document.getElementById('info-box').style.display = 'none';
+  }
   function logKey(e){
     if(e.code === "KeyP"){
       shouldMove = !shouldMove;
+      if(!shouldMove){
+        document.getElementById('innerLightNav').style.borderTop = '5px double red';
+        document.getElementById('innerLightNav').style.borderBottom = '5px double red';
+
+      }else{
+        document.getElementById('innerLightNav').style.borderTop = "5px double white";
+        document.getElementById('innerLightNav').style.borderBottom = '5px double white';
+
+      }
     }
   }
   function goTo(page){
