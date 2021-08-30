@@ -1,11 +1,11 @@
 
 :root {
-  --color-accent: rgb(27, 26, 26);
-  --color-main:rgb(235, 235, 235);
+  --color-main: rgb(27, 26, 26);
+  --color-accent:rgb(235, 235, 235);
 }
 body{
-  padding: 0px ;
-  margin: 0px ;
+  padding: 0px;
+  margin: 0px;
   background: var(--color-main);
 }
 .balebIcon{
@@ -41,16 +41,20 @@ body{
 * {
     font-family: 'PT Sans Caption','Scheherazade','Kumbh Sans','Courier Prime','Alata', sans-serif !important;
   }
+  #mainName{
+    display: block;
+    width: 75%;
+    margin-top: -15%; 
+    margin-left: auto;
+    margin-right: auto;
+    /* height: 100px; */
+  }
   #cool{
     padding-top: 20px;
     padding-left: 15px;
     height: 45px;
     border-bottom: 3px solid black;
     margin-bottom: 20px;
-    /* height: 45px;
-    width: 100%;
-    z-index: 10; */
-    /* background: var(--color-accent); */
   }
   .apps{
     border: 3px solid var(--color-accent);
@@ -59,7 +63,6 @@ body{
     font-size: 18px;
     font-weight: 600;
     padding: 15px;
-    /* margin-left: auto; */
     margin-right: auto;
     box-shadow: 4px 4px var(--color-accent);
     border-radius: 3px;
@@ -79,21 +82,14 @@ body{
   .thumb{
     margin-top: 5px;
     border: 4px double var(--color-accent);
-    /* border-top: 4px double var(--color-accent);
-    border-bottom: 4px double var(--color-accent); */
-
     height: 130px;
     width: 99%;
     object-fit: cover;
     z-index: 2;
     transition: height .5s;
-    
   }
   .outter{
-    /* display: inline-block; */
     margin: 1%;
-    /* margin-left: auto; */
-    /* margin-right: auto; */
     transition: margin .5s;  
     border-radius: 1px;
     min-width: 250px;
@@ -103,35 +99,24 @@ body{
     width: 100%;
     margin-bottom: 20px;
   }
-  
   /* .overlay {
-    
     height: 45%;
     transition: height .5s;
     background-color: var(--color-main);
-    font-weight: normal;
-    
+    font-weight: normal;  
   } */
   .thumb:hover .overlay{
-    /* box-shadow: 10px 10px var(--color-accent); */
     height: 0%;
-
-    /* border-top: 3px dotted; */
-
   }
   .thumb:hover {
-    /* height: 270px; */
-    /* opacity: .8; */
     cursor: pointer;
     border-style: solid;
   }
   .balebName{
     margin: 5px;
     border: 3px solid var(--color-accent);
-    /* box-shadow: 0 0 2px var(--color-accent); */
     padding: 3px;
     font-size: 22px;
-    /* box-shadow: 3px 3px var(--color-accent); */
     transition: box-shadow .5s;
   }  
   #footer{
@@ -141,7 +126,6 @@ body{
     margin-bottom: 10px;
     height: auto;
     text-align: center;
-    
   }
   @media only screen and (min-width: 700px) {
     #footer{
@@ -151,15 +135,15 @@ body{
       margin-top: 0%;
       margin-bottom: 10px;
       height: auto;
-      
-      
+    }
+    #mainName{
+      width: 100%;
+      /* margin-left: -20%; */
+      margin-top: -5%;
     }
   }
-  
-
   #textMain{
     padding: 20px;
-    
   }
   .aboutUs{
     display: inline-block;
@@ -172,15 +156,10 @@ body{
     transition: box-shadow .5s;
     margin: 10px;
   }
-  
-  
   .aboutUs:hover{
     box-shadow: 3px 3px var(--color-accent);
-  
   }
-  
   .styleInfo{
-    /* display: none; */
     color: var(--color-accent);
     font-size: 16px;
     border-radius: 2px;
@@ -194,12 +173,8 @@ body{
     border: 10px solid var(--color-accent);
     border-radius: 1px;
     padding: 2%;
-    
   }
   .tab1{
     display: inline-block;
     margin-left: 12%;
   }
-  
-  
-  
