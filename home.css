@@ -7,6 +7,7 @@ body{
   padding: 0px;
   margin: 0px;
   background: var(--color-main);
+  overflow-x: hidden;
 }
 .balebIcon{
   height: 8%;
@@ -91,6 +92,7 @@ body{
   #outter{
     position: absolute;
     top: 0;
+    z-index: -10;
   }
   /* .outter{
     margin: 1%;
@@ -144,6 +146,7 @@ body{
       width: 100%;
       /* margin-left: -20%; */
       margin-top: 0%;
+      background: rgb(0,0,0,.8);
     }
   }
   #textMain{
