@@ -8,6 +8,7 @@ body{
   margin: 0px;
   background: var(--color-main);
   overflow-x: hidden;
+  overflow-y: hidden;
 }
 .balebIcon{
   height: 8%;

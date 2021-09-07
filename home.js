@@ -55,13 +55,11 @@ let radius;
               svg.selectAll(".sphere")
                         .data(d3.range(14))
                         .enter().append("polyline")
-                        .style("stroke", "rgb(25,210,42)")
+                        .style("stroke", "black")
                         .style("stroke-width", ogLineSize)
                         .style("stroke-linejoin", "round")
                         .attr("points", getCirclePoints) 
-                        .attr("fill","rgb(0,0,0,.15)")
-                        .attr("filter", "url(#blur)")
-
+                        .attr("fill","rgb(0,0,0,.12)")
                         .attr("class","sphere");
                   // shape the line join
               
@@ -73,27 +71,16 @@ let radius;
                   .attr("points", getCirclePoints) 
                   .attr("fill","none")
                   .attr("class","cum")
-                  .attr("filter", "url(#blur)")
+                  // .attr("filter", "url(#blur)")
                   .style("stroke-linejoin", "round");  // shape the line join
                   const allLoad = svg.selectAll('polyline');
                   console.log(allLoad);
 
                   let i = 0;
-                  const endLoad = setInterval(function(){
-                   // console.log(i);
-                    if(i > allLoad.length){
-                      clearInterval(endLoad);
-                    }
-                    svg.selectAll('polyline')[i]
+                    svg.selectAll('polyline')
                       .transition()
-                      .duration(500)
+                      .duration(3000)
                         .style("stroke", "rgb(25,210,42)")
-  
-                    i++;
-                  },1000);
-                  
-                  
-                
     function ran(max) {
       return Math.floor(Math.random() * max) + 5;
     }   
@@ -119,7 +106,6 @@ let radius;
       let y = 0;
       angle = 0;
       let currentPoints = [];
-      console.log("circ", countCirc);
       radius = radius + (countCirc);
       while(angle <= 6.25){
         x = (radius * Math.sin(angle)) + width/5;
@@ -128,6 +114,8 @@ let radius;
         currentPoints.push(y);
         angle = angle + .05;
       }
+      console.log("circ", x,y,width);
+
       currentPoints.push(currentPoints[0]);
       currentPoints.push(currentPoints[1]);
       
