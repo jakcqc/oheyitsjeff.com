@@ -1,151 +1,162 @@
 let width;
 let height;
-let svg;
-let radius;
     document.addEventListener("DOMContentLoaded", function(){
         width = window.innerWidth;
-        height = window.innerHeight;
-        if(width < 600){
-          radius = 70;
-        }else{
-          radius = 130;
-        }
-        
-        svg = d3.select("#vis").append("svg")
-            .attr("width", Math.ceil(width/10)*10)
-            .attr("height", Math.ceil(height/10)*10);
-          createLotus(svg);
+        height = window.height;
+        createAnimation();
+        // gradientAnimation();
     });
   function goTo(page){
     window.location.href = page;
   }
-  function createLotus(svg){
-    
-    const z = 50,
-          ogLineSize = "2px",
-          scaleSizeChange = 1;
-    let hue = 0,
-        hueBody = 0,
-        newString,
-        lineSet = 0,
-        angle = 0,
-        points = [],
-        counter = 1,
-        opacP = .2,
-        countCirc = 0,
-        numbCirc = 0;
-      
-        var filter = svg.append("defs")
-          .append("filter")
-            .attr("id", "blur")
-          .append("feGaussianBlur")
-            .attr("stdDeviation", 1);
-            svg.selectAll(".sphere")
-            .data(d3.range(1))
-            .enter().append("polyline")
-            .style("stroke", "rgb(25,210,42)")
-            .style("stroke-width", ogLineSize)
-            .attr("points", getCirclePoints) 
-            .attr("fill","rgb(0,0,0,.7)")
-            .attr("class","sphere")
-            .attr("filter", "url(#blur)")
+  function gradientAnimation(){
+      const blurb = document.getElementsByTagName('body');
+      let inc = 1;
+      setInterval(function (){
+        
+        blurb[0].style.background = "linear-gradient(110deg, rgba(248, 182, 241,"+inc+") , rgba(255,255,255,1) 20.71%)";
+        inc = inc -.05;
+        console.log('farting');
+      },400);
+      console.log(blurb);
+  }
+  function createAnimation(){
+    const z = 10,
+      x = width / z,
+      y = height / z;
+  let hue = 0,
+      hueBody = 0,
+      vhTen = height*.05;
 
-            .style("stroke-linejoin", "round");  // shape the line join
-            let fart = 
-              svg.selectAll(".sphere")
-                        .data(d3.range(14))
-                        .enter().append("polyline")
-                        .style("stroke", "black")
-                        .style("stroke-width", ogLineSize)
-                        .style("stroke-linejoin", "round")
-                        .attr("points", getCirclePoints) 
-                        .attr("fill","rgb(0,0,0,.12)")
-                        .attr("class","sphere");
-                  // shape the line join
-              
-                  svg.selectAll(".cum")
-                  .data(d3.range(20))
-                  .enter().append("polyline")
-                  .style("stroke", "black")
-                  .style("stroke-width", "2px")
-                  .attr("points", getCirclePoints) 
-                  .attr("fill","none")
-                  .attr("class","cum")
-                  // .attr("filter", "url(#blur)")
-                  .style("stroke-linejoin", "round");  // shape the line join
-                  const allLoad = svg.selectAll('polyline');
-                  console.log(allLoad);
+    let yIncrease = 50; 
+    let yCheck = 50;
+    let yIncreaseRect = 10; 
+    let yCheckRect = 10;
+    let rectHeight = 40;
+    let rectWidth = 40;
+    let animationXChange = 0;
+    let animationXChangeRect = 0;
+    let sizeRect = -(rectWidth*3);
+    let size = 10;
+    let ogLineSize = ".3vh";
+let svg = d3.select("#visHome").append("svg")
+      .attr("width", Math.ceil(width/10)*10)
+      .attr("height", 150);
+    // svg.selectAll("rect")
+    //   .data(d3.range(30))
+    //   .enter().append("rect")
+    //   .attr("x",xIncreaseRect)
+    //   .attr("y", animationYIncreaseRect)
+    //   .attr("height",rectHeight*2)
+    //   .attr("width",rectWidth*2)
+    //   .attr("fill","none")
+    //   .attr("stroke","white")
+    //   .style("stroke-width","6px");
+     
+      //.on("mouseover", rectOver);         
+   svg.selectAll("circle")
+      .data(d3.range(8))
+      .enter().append("circle")
+      .attr("cx", xIncrease)
+      .attr("cy", animationYIncrease)
+      .attr("r",20)
+      .attr("fill","white")
+      .style("fill-opacity",".9")
+      .attr("stroke","black")
+      .style("stroke-width","2px")
+      .on("mouseover", mouseover);   
+let load = d3.transition()
+      .duration(300)
+      .ease(d3.easeLinear);
 
-                  let i = 0;
-                    svg.selectAll('polyline')
-                      .transition()
-                      .duration(3000)
-                        .style("stroke", "rgb(25,210,42)")
-    function ran(max) {
-      return Math.floor(Math.random() * max) + 5;
-    }   
-    function tester(points){
-      let count = 0;
-      while(count < points.length){
-        if(count%4 == 0){
-          points[count] = points[count] - 6;
-        }
-        else if(count%5){
-          points[count] = points[count] -3;
 
-        }else{
-          points[count] = points[count] + 2;
-        }
-        count++;
-      }
-      return points;
-      
-    } 
-    function getCirclePoints(){
-      let x = 0;
-      let y = 0;
-      angle = 0;
-      let currentPoints = [];
-      radius = radius + (countCirc);
-      while(angle <= 6.25){
-        x = (radius * Math.sin(angle)) + width/5;
-        y = (radius * Math.cos(angle)) + height/6;
-        currentPoints.push(x);
-        currentPoints.push(y);
-        angle = angle + .05;
-      }
-      console.log("circ", x,y,width);
 
-      currentPoints.push(currentPoints[0]);
-      currentPoints.push(currentPoints[1]);
-      
-      countCirc = countCirc + .75;
-      return tester(currentPoints.map(zz => zz * 2.5));
-    }
-    function mouseover(i) {
-        this.parentNode.appendChild(this);
-        d3.select(this)
-            .style("stroke", "white")
-            .style("stroke-width",ogLineSize)
-            .style("fill-opacity", opacP)
+            
+function animationYIncrease(i){
+  if(yIncrease === yCheck){
+    yIncrease = yIncrease + rectHeight;
+  }
+  else{
+    yIncrease = yIncrease - rectHeight;
+  }
   
-        .transition()
-          .duration(300)
-            .style("stroke-width","3vh")
-            .style("stroke", function(i) {
-              if(hue != 360){
-                hue = hue + 1.3; 
-              }else{
-                hue = 0;
-              }
-              
-              return d3.hsl(hue, 1,.60); 
-              
-              })
-        .transition()
-          .duration(300)
-            .style("stroke-width", "1" + ogLineSize)
-    
-      }
-    }
+  return yIncrease;
+}
+function xIncrease(i){
+
+       size = size + 40;
+       return size;
+}
+function animationYIncreaseRect(i){
+  if(yIncreaseRect === yCheckRect){
+    yIncreaseRect = yIncreaseRect + rectHeight;
+  }
+  else{
+    yIncreaseRect = yIncreaseRect -rectHeight;
+  }
   
+  return yIncreaseRect;
+}
+function xIncreaseRect(i){
+  if(sizeRect > width){
+    sizeRect = -(rectWidth);
+  }
+       sizeRect = sizeRect + rectWidth*2;
+       
+       return sizeRect;
+}
+function rectOver(i) {
+  this.parentNode.appendChild(this);
+
+  d3.select(this)
+  .style("stroke", "white")
+  .style("stroke-width",ogLineSize)
+.transition()
+ .duration(300)
+  .style("stroke-width","1px")
+  .style("stroke", function(i) {
+    if(hue != 360){
+      hue = hue + 10; 
+    }else{
+      hue = 0;
+    }
+    
+    return d3.hsl(hue, 1,.60); 
+    
+    })
+.transition()
+ .duration(400)
+ .style("stroke","black")
+  .style("stroke-width","5px")
+  .attr("transform","translate("+4*rectWidth+","+0+")scale(1)")
+          
+}
+  function mouseover(i) {
+    this.parentNode.appendChild(this);
+
+    d3.select(this)
+    .style("stroke", "white")
+    .style("stroke-width",ogLineSize)
+    .style("fill-opacity", ".65")
+
+ .transition()
+   .duration(300)
+    .style("stroke-width","3vh")
+    .style("fill", function(i) {
+      if(hue != 360){
+        hue = hue + 10; 
+      }else{
+        hue = 0;
+      }
+      
+      return d3.hsl(hue, 1,.60); 
+      
+      })
+.transition()
+   .duration(300)
+   .style("stroke","black")
+    .style("stroke-width","5px")
+               
+  }
+  }
+
