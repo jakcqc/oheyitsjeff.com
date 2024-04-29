@@ -57,7 +57,7 @@ console.log(localStorage.getItem('hasSpace'));
       if(radius>width+300){
         let audio = new Audio('../assets/Bluebird.mp3');
         audio.play();
-        goTo("../GeoSpace-idle/space/space.html");
+        goTo("../GeoSpace-Idle/space/space.html");
       }
     } else {
       background(0);
