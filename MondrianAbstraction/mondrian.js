@@ -39,7 +39,9 @@ function createAbstraction(){
         .attr("fill","white")
         .attr("stroke","black")
         .attr("stroke-width",".05vh")
-        .on("mouseover", mouseover);
+        //.on("mouseover", mouseover)
+        .on("pointermove", toucher);
+
     
     const rectsAll = document.getElementsByTagName('rect');
     for(let i = 0;i<rectsAll.length;i++){
@@ -86,8 +88,8 @@ function createAbstraction(){
     function translate(i) {
       return "translate("+(i % x) * z+","+Math.floor(i / x) * z+")";
     }
-    //subscriber();
-    function mouseover(i) {
+    function toucher(i) {
+      console.log("mouse");
       this.parentNode.appendChild(this);
       d3.select(this)
         .transition()
