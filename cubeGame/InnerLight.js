@@ -66,8 +66,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("green");
               player.x = newX;
               player.y = newY;
-              playerRect.attr("x", player.x * cellSize*2)
-                        .attr("y", player.y * cellSize*2);
+              playerRect.attr("x", player.x * cellSize)
+                        .attr("y", player.y * cellSize);
           } else if (data[newY][newX] >= 1) { // Check if moving onto a red cell
             console.log("red");
 
