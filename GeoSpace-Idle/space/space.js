@@ -17,45 +17,65 @@ let dLogCurrent = 1;
 const dLog = ["hello, do you know where you are?","it is not often you stumble upon a one dimensional point",
                 "i have a feelin you don't do things the normal way","anyway, welcome, you'll find out dimensions have a way of...changing...",
                 "to survive you must become more than a point: you have to become greater, become more, become...like me","Good luck and",
-                "Welcome to the GeoSpace","Now your discovery can begin","",""];
+                "Welcome to the GeoSpace","Now your discovery can begin"];
 //saves(key,value);
 //localStorage.clear();
 document.addEventListener("DOMContentLoaded", function(){
+
+   
+
     width = window.innerWidth;
     height = window.innerHeight;
     y1 = height;
+   
+    
+    
+    setupButtons();
     checkSave();
     //make intial circle coord
-    if(getSave('tutorial')==='false'){
+    if(true){
+
         createCircWave(0,height,50,50);
         createCircWave(0,25,-50,50);
         document.getElementById("da-body").addEventListener("click", dLogger);
     }
+
+
+
  });
 function goTo(page){
     window.location.href = page;
 }
 //get current game state
 function checkSave(){
-    if(getSave('startingEvent')=== 'true'){
-        if(getSave('tutorial')==='true'){
+    if(true){
+        if(true){
             document.getElementById('interface').style.height = "300px";
-            document.getElementById("blob").style.display = "none";
+            //document.getElementById("blob").style.display = "none";
             areaOne();
             if(getSave('act1')==='1'){
                 
             }else{}
         }else{}
-    }else{
-        let audio = new Audio('/assets/Bluebird.mp3');
+    
+        let audio = new Audio('../assets/Bluebird.mp3');
         audio.play();
     }
 }
+function setupButtons() {
+    document.getElementById('homeGoTo').addEventListener('click', function() {
+        goTo('../index.html');
+    });
+    
+    document.getElementById('Menu').addEventListener('click', function() {
+        goTo('home.html');
+    });
+}
 //clicker for dialogue starts the tutorial 
 function dLogger(){
-    const dete = document.getElementById("d-et-e").innerText = dLog[dLogCurrent];
+    
     if(dLogCurrent<dLog.length){
-        
+        const dete = document.getElementById("d-et-e").innerText = dLog[dLogCurrent];
         
         if(dLogCurrent ===4){
             fillRGB[0] =250, fillRGB[1]=150, fillRGB[2]=240, strokeColor = 'black';
@@ -77,7 +97,7 @@ function dLogger(){
             saves('tutorial','true');
             remove();
             areaOne();
-            goTo('home.html');
+           // goTo('home.html');
 
         }
         if(dLogCurrent ===9){
@@ -87,6 +107,8 @@ function dLogger(){
             
         }
         dLogCurrent++;
+    }if(dLogCurrent<0){
+        dLogCurrent = 0;
     }
 }
 function saves(key,value){
@@ -96,29 +118,31 @@ function getSave(key){
     return localStorage.getItem(key);
 }
 function areaOne(){
-    for (let x = 0; x < 300; x++) {
-        const pat = document.createElement('img');
-        pat.src = "/GeoSpace-idle/assets/firstABack.svg";
-        pat.style.position = "absolute";
-        pat.style.left = ""+shiftX+"%";
-        pat.style.top = ""+shiftY+"%";
-        pat.style.transform = "scale(1,1)";
-        document.getElementById('da-body').appendChild(pat);
-        shiftX+=7;
-        if(shiftX>=100){
-            shiftY+=10;
-            shiftX = 0;
-        }
-    }
-    const crys = document.createElement('img');
-    crys.src = "/GeoSpace-idle/assets/crystal.svg";
-    crys.style.position = "absolute";
-    crys.style.right = "10%";
-    crys.style.top = "10%";
-    crys.classList.add('breathe');
-    document.getElementById('da-body').appendChild(crys);
+
+    // for (let x = 0; x < 300; x++) {
+    //     const pat = document.createElement('img');
+    //     pat.src = "/GeoSpace-idle/assets/firstABack.svg";
+    //     pat.style.position = "absolute";
+    //     pat.style.left = ""+shiftX+"%";
+    //     pat.style.top = ""+shiftY+"%";
+    //     pat.style.transform = "scale(1,1)";
+    //     document.getElementById('da-body').appendChild(pat);
+    //     shiftX+=7;
+    //     if(shiftX>=100){
+    //         shiftY+=10;
+    //         shiftX = 0;
+    //     }
+    // }
+    // const crys = document.createElement('img');
+    // crys.src = "/GeoSpace-idle/assets/crystal.svg";
+    // crys.style.position = "absolute";
+    // crys.style.right = "10%";
+    // crys.style.top = "10%";
+    // crys.classList.add('breathe');
+    // document.getElementById('da-body').appendChild(crys);
 }
 function setup(){
+    
     createCanvas(width, height);
     background(5);
 
@@ -126,19 +150,19 @@ function setup(){
 function draw(){
         stroke(strokeColor);
         fill(fillRGB[0],fillRGB[1],fillRGB[2]);
-        if(getSave('startingEvent')==='true'){
+        if(false){
             for (let z = 0; z <circX.length; z++) {
                 circle(circX[z],circY[z],circD[z]);
                 
             }
         }
-        if(getSave('startingEvent')==='false'){
+        if(true){
             circle(circX[x],circY[x],circD[x]);
             if(x<circX.length){
                 x++; 
             }
             if(x === circX.length/2){
-                const dete = document.getElementById("d-et-e").innerText = dLog[0];
+                //const dete = document.getElementById("d-et-e").innerText = dLog[0];
                 //document.getElementById('interface').style.height = "300px"; 
 
             }
