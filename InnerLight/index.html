@@ -28,13 +28,60 @@
       <button onclick ="changePattern(2,'prism')"  >ooo</button>
       <button onclick ="changePattern(3,'rect')"  >/ | \</button>
       <button onclick ="changePattern(4,'square')"  >[ ]</button>
+      <button onclick ="changePattern(5,'user')"  > ' _ '</button>
       <button id = "info" onclick ="information()"  >i</button>
     </div>
+    
     <div id = "info-box" onclick = "closeInfoBox()">
+      <h2>Shape Configuration</h2>
+      <div id="controls">
+        
+        <label for="shapeType">Shape Type:</label>
+        <select id="shapeType">
+            <option value="circle">Circle</option>
+            <option value="rect">Rectangle</option>
+            <option value="polygon">Polygon</option>
+        </select>
+
+        <label for="numElements">Number of Elements:</label>
+        <input type="number" id="numElements" value="50">
+
+        <label for="numSides" >Number of Sides:</label>
+        <input type="number" id="numSides" value="6" >
+
+        <label for="radius">Radius:</label>
+        <input type="number" id="radius" value="50">
+
+        <label for="strokeWidth">Stroke Width:</label>
+        <input type="text" id="strokeWidth" value="2px">
+
+        <label for="strokeColor">Stroke Color:</label>
+        <input type="color" id="strokeColor" value="#000000">
+
+        <label for="fillColor">Fill Color:</label>
+        <input type="color" id="fillColor" value="#FFFFFF">
+
+        <label for="fillOpacity">Fill Opacity:</label>
+        <input type="number" id="fillOpacity" value="1" step="0.1" min="0" max="1">
+
+        <label for="xDivisions">X Divisions:</label>
+        <input type="number" id="xDivisions" value="10">
+
+        <label for="yDivisions">Y Divisions:</label>
+        <input type="number" id="yDivisions" value="10">
+
+        <label for="dynamicSize">Dynamic Size:</label>
+        <input type="number" id="dynamicSize" value="10">
+
+        <label for="incrementSpace">Increment Space:</label>
+        <input type="number" id="incrementSpace" value="10">
+
+        <button onclick="updateShapeIns()">Update Shape</button>
+    </div>
       <!-- <div id = "close">
           x
       </div> -->
-      press p to pause
+      <h3>press p to pause</h3>
     </div>
     <div id = "outter"><div id = "vis"> </div></div>
   </div>

@@ -1,7 +1,7 @@
 
   let width;
   let height;
-  let shouldCreate = [true,true,false,false,false];
+  let shouldCreate = [true,true,false,false,false, false];
   let shouldMove = true;
   let svg;
   let shouldClose = false;
@@ -49,6 +49,9 @@
       if(shape === 'prism'){
         createPrism(svg);
       }
+      if(shape === 'user'){
+        createUserShape(svg);
+      }
     }
   }
   function information(){
@@ -62,7 +65,7 @@
     
   }
   function closeInfoBox(){
-    document.getElementById('info-box').style.display = 'none';
+    //document.getElementById('info-box').style.display = 'none';
   }
   function logKey(e){
     if(e.code === "KeyP"){
@@ -581,5 +584,146 @@ function mouseover(i) {
       .style("stroke-width"," 15px")
   }
 }
-    
+function createShape(svg, shapeConfig) {
+  const {
+      shapeType, // 'circle', 'rect', or 'polygon'
+      numElements,
+      numSides, // Needed for polygon shapes
+      radius, // Also needed for polygons
+      centerX, // Center X coordinate for the shape (for polygons and circles)
+      centerY, // Center Y coordinate for the shape (for polygons and circles)
+      initialSize,
+      color,
+      strokeWidth,
+      strokeColor,
+      fillOpacity,
+      className,
+      incrementSize,
+      xDivisions,
+      yDivisions,
+      dynamicSize
+  } = shapeConfig;
+  console.log(shapeConfig);
+  const widthUnit = width / xDivisions;
+  const heightUnit = height / yDivisions;
+  let elementData  = svg.selectAll('.user');
+  let elements = elementData.data(d3.range( numElements));
+  
+  //const elementData = d3.range(numElements);
+  //let elements = elementData.enter().append("circle")
+
+  //elements.exit().remove(); // Remove unused elements
+
+  let newElements;
+  if (shapeType === 'rect') {
+      newElements = elements.enter().append('rect');
+  } else if (shapeType === 'circle') {
+      newElements = elements.enter().append('circle');
+  } else if (shapeType === 'polygon') {
+    const max = radius + numElements * incrementSize;
+      newElements = elements.enter().append('polygon')
+          .attr('points', (d, i) => getPolygonPoints(numSides,max - (radius + i * incrementSize), centerX, centerY));
+  }
+
+  newElements.merge(elements)
+      .attr('class', 'user')
+      .attr('stroke', strokeColor)
+      .attr('stroke-width', strokeWidth)
+      .attr('fill', 'none')
+      .style('fill-opacity', fillOpacity)
+      .on('mouseover', mouseover);
+
+  if (shapeType === 'circle') {
+    const max = initialSize + numElements * incrementSize;
+      newElements.attr('cx', centerX)
+                 .attr('cy', centerY)
+                 .attr('r', (d, i) => max - (initialSize + i * incrementSize));
+  } else if (shapeType === 'rect') {
+    //const max = initialSize + numElements * incrementSize;
+      newElements.attr('width', (d, i) => widthUnit - i * dynamicSize)
+                 .attr('height', (d, i) => heightUnit - i * dynamicSize)
+                 .attr('x', (d, i) => i % xDivisions * widthUnit)
+                 .attr('y', (d, i) => Math.floor(i / xDivisions) * heightUnit);
+  }
+
+  function getPolygonPoints(sides, radius, centerX, centerY) {
+      const step = 2 * Math.PI / sides;
+      return Array.from({length: sides}, (v, i) => {
+          const x = centerX + radius * Math.cos(step * i);
+          const y = centerY + radius * Math.sin(step * i);
+          return `${x},${y}`;
+      }).join(' ');
+  }
+  
+  function mouseover(d, i) {
+      if (!shouldMove) return;
+      this.parentNode.appendChild(this);
+      d3.select(this)
+        .transition()
+        .duration(300)
+        .style('stroke-width', dynamicSize + 'px')
+        .style('stroke', () => {
+            let hue = (i * 10) % 360;
+            return d3.hsl(hue, 1, 0.6);
+        })
+        .transition()
+        .duration(300)
+        .style('stroke-width', strokeWidth);
+  }
+}
+function updateShapeIns(){
+  if(shouldCreate[5]){
+    changePattern(5,'user');
+    changePattern(5,'user');
+
+  }else{changePattern(5,'user');}
+
+}
+function createUserShape(svg)
+{
+  
+  createShape(svg,updateShape());
+}
+function updateShape() {
+  const shapeType = document.getElementById('shapeType').value;
+  const numElements = parseInt(document.getElementById('numElements').value);
+  const numSides = parseInt(document.getElementById('numSides').value);
+  const radius = parseInt(document.getElementById('radius').value);
+  const strokeWidth = document.getElementById('strokeWidth').value;
+  const strokeColor = document.getElementById('strokeColor').value;
+  const fillColor = document.getElementById('fillColor').value;
+  const fillOpacity = parseFloat(document.getElementById('fillOpacity').value);
+  const xDiv = parseInt(document.getElementById('xDivisions').value);
+  const yDiv = parseInt(document.getElementById('yDivisions').value);
+  const dynamiSize = parseInt(document.getElementById('dynamicSize').value);
+  const incrementSpace = parseInt(document.getElementById('incrementSpace').value);
+
+
+
+  const shapeConfig = {
+      shapeType: shapeType,
+      numElements: numElements,
+      numSides: shapeType === 'polygon' ? numSides : undefined,
+      radius: radius,
+      centerX: width/2, // Center of the SVG
+      centerY: height/2, // Center of the SVG
+      initialSize: radius,
+      color: fillColor,
+      strokeWidth: strokeWidth,
+      strokeColor: strokeColor,
+      fillOpacity: fillOpacity,
+      className: 'user',
+      incrementSize: incrementSpace, // Increment size for demonstration
+      xDivisions: xDiv,
+      yDivisions: yDiv,
+      dynamicSize: dynamiSize
+  };
+return shapeConfig;
+  // Remove old shapes
+  //svg.selectAll('*').remove();
+
+  // Recreate shape with new settings
+  //createShape(svg, shapeConfig);
+}
+
 
