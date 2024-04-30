@@ -17,4 +17,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/bitnami/projects/oheyitsjeff.com
-            git pull origin master
+            git pull origin main
