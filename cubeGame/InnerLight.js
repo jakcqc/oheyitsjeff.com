@@ -97,7 +97,9 @@ function getColor(d) {
 }
 
 
-
+function goTo(page){
+  window.location.href = page;
+}
 let shouldClose = false;
 
 
