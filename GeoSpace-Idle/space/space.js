@@ -70,6 +70,9 @@ function setupButtons() {
     document.getElementById('Menu').addEventListener('click', function() {
         goTo('home.html');
     });
+    document.getElementById('Shapes').addEventListener('click', function() {
+        goTo('../shapes/shapeTesting.html');
+    });
 }
 //clicker for dialogue starts the tutorial 
 function dLogger(){
