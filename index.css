@@ -1,0 +1,346 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    color: rgb(235,107,40);
+    background-color: rgb(216,204,178); /* Set your desired background color here */
+}
+
+
+body, html {
+    margin: 0;
+    padding: 0;
+    /* font-family: Arial, sans-serif; */
+    font-family: 'Helvetica', Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+#icon {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    width: 100px;
+    height: 100px;
+    border-radius: 60%;
+    background-size: cover;
+    z-index: 1000;
+    background-position: center;
+    cursor: pointer; /* Indicate the element is clickable */
+
+    transition: all 0.8s ease;
+
+}
+#right{
+
+}
+#icon.grown {
+    top:0;
+    left:0;
+    width: 100vw; /* Grow to full width of the viewport */
+    height: 100vh; /* Grow to full height of the viewport */
+    border-radius: 2%;
+    border: 1px solid rgb(216,204,178);
+    background-size: contain;
+    /* background-repeat: no-repeat; */
+}
+#first{
+    background-image: url('./FellerArtwork/Tape_Mockup_w_Shell.jpeg');
+
+}
+#icon_outline{
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    width: 100px;
+    height: 100px;
+    border-radius: 60%;
+    background-size: cover;
+    background-position: center;
+    background-color: none;
+    /* border: 2px solid rgb(216,204,178); */
+    /* box-shadow: -1px -2px 3px rgb(216,204,178) */
+}
+#icon_outline_under{
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    width: 100px;
+    height: 100px;
+    border-radius: 60%;
+    background-size: cover;
+    background-position: center;
+    background-color: none;
+    /* border: 2px solid rgb(216,204,178); */
+    /* box-shadow: 0px 1px 3px rgb(216,204,178) */
+
+}
+.hero {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    /* height: 100%; */
+    background-size: cover;
+    background-position: center;
+    color: white;
+    text-align: center;
+}
+
+.hero-text {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+}
+
+.section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 50vh;
+    background-size: cover;
+    background-position: center;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    flex-direction: column;
+}
+.display
+{
+    background-size:contain;
+    /* background-repeat: no-repeat; */
+}
+.section h2 {
+    margin: 0;
+    font-size: 2em;
+}
+
+.section p {
+    font-size: 1.2em;
+    
+}
+.bottom{
+    /* filter: blur(10px) */
+}
+.bottom::before {
+    content: "";
+    position: absolute;
+    top: auto;
+    left: auto;
+    width: 100%;
+    height: 50vh;
+    background-image: url('./FellerArtwork/feller_doorhinge.jpeg');
+    background-size: cover;
+    background-position: center;
+    filter: blur(4px); /* Adjust the value to increase or decrease the blur */
+    z-index: -1;
+}
+.wrapper{
+    display: flex;
+}
+.section.bottom {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Create 5 equal-width columns */
+    gap: 10px; /* Add space between each column */
+    padding: 20px; /* Add padding around the section */
+    justify-items: center; /* Center items horizontally within their grid cells */
+
+    text-align: center; /* Center the text in each item */
+}
+.about{
+
+}
+.section.about {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 30px;
+    padding: 20px;
+    justify-items: center;
+    align-items: center;
+    height: 70vh;
+    text-align: left;
+    overflow: hidden; /* Ensure content doesn't overflow the section */
+}
+
+.section.about.about2::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('./FellerArtwork/Slide/IMG_17.png'); /* Replicate the background image */
+    background-size: contain;
+    background-position: center;
+    background-repeat: repeat;
+    filter: blur(0px); /* Apply the blur filter to the background image */
+    z-index: 0; /* Ensure it's behind the content */
+    transition: background-image 0.3s ease, filter 0.3s ease; /* Smooth transition for background image and blur */
+
+
+}
+.section.about.about2:hover::before {
+    background-image: url('./FellerArtwork/colorSphere.png'); 
+    filter:blur(0px);
+    /* filter:hue-rotate(160deg) saturate(); */
+}
+.section.about::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('./FellerArtwork/Slide/IMG_3.png');
+    /* background-image: url('./FellerArtwork/colorSphere.png'); Replicate the background image */
+    transition: background-image 0.3s ease, filter 0.3s ease; /* Smooth transition for background image and blur */
+
+    background-size: contain;
+    background-position: center;
+    background-repeat: repeat;
+    filter: blur(0px); /* Apply the blur filter to the background image */
+    z-index: 0; /* Ensure it's behind the content */
+}
+
+.section.about > * {
+    position: relative;
+    z-index: 1; /* Ensure content is above the blurred background */
+}
+
+
+
+.social-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.section-item{
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    /* align-items: center; */
+    
+    
+}
+
+.weAre{
+    color: rgb(0, 0, 0);
+    text-shadow: 1px 1px 7px rgb(255, 255, 255),-1px -1px 7px rgb(255, 255, 255),
+    1px 1px 0px rgb(255, 255, 255),-1px -1px 0px rgb(255, 255, 255);
+    
+
+}
+.aboutUS{
+    color: white;
+    text-shadow: 2px 2px 1px rgb(235,107,40);
+    font-size: 2em;
+}
+.social-item .img-container {
+    background-image: url('./FellerArtwork/FellerWhite.PNG'); /* Change to the new image on hover */
+
+    margin-top: 15px;
+    width: 100px;
+    height: 100px;
+    background-size: cover;
+    background-position: center;
+    transition: box-shadow 0.25s ease, background-image 0.3s ease; /* Smooth transition */
+
+}
+.section-item img {
+    
+    /* object-fit: contain; */
+    box-shadow: 5px 5px 3px 2px rgb(233, 126, 69),
+                 -8px -7px 1px 1px rgb(254, 254, 254);
+    width: 100%;
+    /* height: 100%; */
+
+
+}
+.social-item .img-container:hover {
+    background-image: url('./FellerArtwork/FellerOrange.PNG'); /* Change to the new image on hover */
+
+    box-shadow: 0px 0px 0px 3px rgb(255, 255, 255),
+    0px 5px 0px 2px rgb(255, 255, 255); /* Enhanced box-shadow */
+    /* transform: scale(1.05); Slight zoom-in effect */
+}
+/* Media Queries */
+.middle{
+    width: 50%;
+    height: 100%;
+    object-fit: cover;
+}
+#right{
+
+    background-color: rgb(235,107,40);
+    filter: grayscale(60%) hue-rotate(-10deg);
+}
+
+@media (max-width: 768px) {
+    body{
+        overflow-x: hidden;
+    }
+    
+    .hero {
+        /* height: auto; */
+        width: 100%;
+        background-size:contain;
+        background-repeat: no-repeat;
+        background-position: top;
+        /* background-size: 110%; */
+        /* object-fit: cover; Ensures the image covers the container */
+        /* overflow: hidden; */
+
+    }
+    #right{
+        display: none;
+    }
+    #first{
+        background-image: url("./FellerArtwork/Tape_mockup_p.png");
+        height: 100vh;
+        background-size: 100%;
+        background-size: cover;
+        background-repeat:no-repeat;
+        background-position: center;
+
+    }
+    .section {
+        height: 50vh;
+        padding: 10px;
+    }
+
+    .section h2 {
+        font-size: 1.5em;
+    }
+
+    .section p {
+        font-size: 1em;
+    }
+    #icon{
+        height: 60px;
+        width: 60px;
+    }
+}
+
+@media (max-width: 480px) {
+    .social-item .img-container {
+        width: 50px;
+        height: 50px;
+    }
+
+    .section {
+        height: 30vh;
+        padding: 5px;
+    }
+
+    .section h2 {
+        font-size: 1.2em;
+    }
+
+    .section p {
+        font-size: 0.9em;
+    }
+}
