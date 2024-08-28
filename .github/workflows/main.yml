@@ -16,5 +16,5 @@ jobs:
           username: ${{ secrets.LIGHTSAIL_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/bitnami/projects/oheyitsjeff.com
-            git pull origin main
+            cd /home/bitnami/projects/feller.band
+            git pull origin Feller
