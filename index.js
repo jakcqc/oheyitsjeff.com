@@ -3,7 +3,7 @@ let currentIndex = 0;
 
 
 // Assuming you know the total number of images in the folder
-const totalImages = 20; // Replace with the actual number of images
+const totalImages = 19; // Replace with the actual number of images
 
 // Generate the list of image filenames
 for (let i = 1; i <= totalImages; i++) {
