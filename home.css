@@ -144,7 +144,7 @@ body{
     cursor: pointer;
     border-style: solid;
   }
-  .balebName{
+  .mainName{
     margin: 5px;
     border: 3px solid var(--color-accent);
     box-shadow: -10px 0px 0px #FF9FF5;

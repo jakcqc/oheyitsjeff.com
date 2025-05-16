@@ -4,11 +4,6 @@
     * {
       font-family: 'Kosugi Maru','Scheherazade','Kumbh Sans','Courier Prime','Alata', sans-serif !important;
     }
-    svg, svg * {
-      pointer-events: all;
-      touch-action: none;
-    }
-    
     #infoBar{
       /* background-color: white; */
       color: black;

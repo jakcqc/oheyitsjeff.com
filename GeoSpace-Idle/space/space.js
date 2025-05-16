@@ -73,6 +73,9 @@ function setupButtons() {
     document.getElementById('Shapes').addEventListener('click', function() {
         goTo('../shapes/shapeTesting.html');
     });
+    document.getElementById('INT').addEventListener('click', function() {
+        goTo('../shapes/create.html');
+    });
 }
 //clicker for dialogue starts the tutorial 
 function dLogger(){

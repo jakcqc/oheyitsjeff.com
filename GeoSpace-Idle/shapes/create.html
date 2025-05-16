@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3.js Hover to Connect Points with Lines or Arcs</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        #canvas {
+            width: 800px;
+            height: 600px;
+            border: 1px solid black;
+        }
+        .button {
+            background-color: #4CAF50; /* Green */
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        .button:hover {
+            background-color: #39793c;
+        }
+        #clear-select {
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 8px;
+        }
+        #canvas-container {
+            margin-top: 20px;
+        }
+        .selected {
+            background-color: #008CBA; /* Blue */
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <button id="add-point" class="button">Add Point</button>
+        <button id="draw-line" class="button">Draw Line</button>
+        <button id="draw-arc" class="button">Draw Arc</button>
+        <button id="clear-canvas" class="button">Clear Canvas</button>
+        <select id="clear-select">
+            <option value="all">All</option>
+            <option value="points">Points</option>
+            <option value="lines">Lines</option>
+            <option value="arcs">Arcs</option>
+            <option value="grid">Grid</option>
+        </select>
+        <button id="draw-grid" class="button">Draw Grid</button>
+    </div>
+    <svg id="canvas"></svg>
+
+    <script>
+        const svg = d3.select("#canvas");
+        const gridSize = 40;
+        const path = svg.append("path").attr("fill", "none").attr("stroke", "black");
+        let points = [];
+        let drawingLine = false;
+        let drawingArc = false;
+        let primedPoint = null;
+        const d3path = d3.path();
+        function getPointFromShape(inShape){
+            const currentX = parseFloat(inShape.attr("cx"));
+            const currentY = parseFloat(inShape.attr("cy"));
+            return ([currentX,currentY]);
+        }
+        function addPoint(x, y) {
+            // Round coordinates to nearest grid point
+            const newX = Math.round(x / gridSize) * gridSize;
+            const newY = Math.round(y / gridSize) * gridSize;
+            points.push([newX, newY]);
+            svg.append("circle").
+            attr("cx", newX).
+            attr("cy", newY).
+            attr("r", 8).
+            attr("fill", "red")
+            .attr("state",0)
+            .on("mouseover", function(i) {
+
+                cp = d3.select(this);
+                
+                if (primedPoint !== null) {
+                    
+                    
+                    if (drawingLine) {
+                        
+
+                        let cpoint = getPointFromShape(cp);
+                        drawLineBetweenPoints(getPointFromShape(primedPoint), cpoint);
+                        setNormAttr(cp);
+                        setNormAttr(primedPoint);
+                        primedPoint = null;
+                    } else if (drawingArc) {
+                        
+
+                        let cpoint = getPointFromShape(cp);
+                        
+                        drawArcBetweenPoints(getPointFromShape(primedPoint), cpoint);
+                        setNormAttr(cp);
+                        setNormAttr(primedPoint);
+                        primedPoint = null;
+                    }
+                    
+                    
+                } else {
+                    if (drawingLine || drawingArc) {
+                        
+                        setPrimedAttr(cp);
+                        primedPoint = cp;
+                    }
+                }
+            });
+        }
+
+        function drawLineBetweenPoints(startPoint, endPoint) {
+            svg.append("line")
+                .attr("x1", startPoint[0])
+                .attr("y1", startPoint[1])  
+                .attr("x2", endPoint[0])
+                .attr("y2", endPoint[1])
+                .attr("stroke", "black")
+                .attr("stroke-width",10); // Adjust the stroke width as needed
+        }
+        function setPrimedAttr(inShape){
+            inShape.style("fill","blue")
+            inShape.style("r","10");
+        }
+        function setNormAttr(inShape){
+            
+            inShape.attr("r", 10);
+            inShape.attr("fill", "red");
+        }
+        function drawArcBetweenPoints(startPoint, endPoint) {
+            const arc = d3.path();
+
+            // Calculate the center, radius, start angle, and end angle of the arc
+            const dx = endPoint[0] - startPoint[0];
+            const dy = endPoint[1] - startPoint[1];
+            const radius = Math.sqrt(dx * dx + dy * dy);
+            const startAngle = Math.atan2(dy, dx);
+            const endAngle = startAngle + Math.PI; // Example: Draw a semicircle
+
+            // Create the arc using d3.path.arc
+            arc.arc(startPoint[0], startPoint[1], radius, startAngle, endAngle);
+
+            // Append the arc path to the SVG
+            svg.append("path")
+                .attr("d", arc.toString())
+                .attr("fill", "none")
+                .attr("stroke", "black");
+
+        }
+
+        function drawGrid() {
+            const width = parseInt(svg.style("width"));
+            const height = parseInt(svg.style("height"));
+
+            // Vertical lines
+            for (let x = 0; x < width; x += gridSize) {
+                svg.append("line").attr("x1", x).attr("y1", 0).attr("x2", x).attr("y2", height)
+                    .attr("stroke", "black").attr("stroke-width", 0.8);
+            }
+
+            // Horizontal lines
+            for (let y = 0; y < height; y += gridSize) {
+                svg.append("line").attr("x1", 0).attr("y1", y).attr("x2", width).attr("y2", y)
+                    .attr("stroke", "black").attr("stroke-width", 0.8);
+            }
+        }
+
+        svg.on("click", function(event) {
+            const [x, y] = d3.pointer(event);
+            addPoint(x, y);
+        });
+
+        
+        
+        svg.selectAll("circle").on("mouseover", function(event, d) {
+
+            console.log("mouse");
+            if (primedPoint !== null) {
+                const endPoint = d3.pointer(event);
+                if (drawingLine) {
+                    drawLineBetweenPoints(primedPoint, endPoint);
+                } else if (drawingArc) {
+                    drawArcBetweenPoints(primedPoint, endPoint);
+                }
+                primedPoint = null;
+            } else {
+                primedPoint = d;
+            }
+        });
+
+        document.getElementById("add-point").addEventListener("click", function() {
+            drawingLine = false;
+            drawingArc = false;
+            toggleButtonClass("add-point");
+        });
+
+        document.getElementById("draw-line").addEventListener("click", function() {
+            drawingLine = true;
+            drawingArc = false;
+            toggleButtonClass("draw-line");
+        });
+
+        document.getElementById("draw-arc").addEventListener("click", function() {
+            drawingLine = false;
+            drawingArc = true;
+            toggleButtonClass("draw-arc");
+        });
+
+        function toggleButtonClass(buttonId) {
+            const buttons = document.querySelectorAll(".button");
+            buttons.forEach(button => {
+                if (button.id === buttonId) {
+                    button.classList.add("selected");
+                } else {
+                    button.classList.remove("selected");
+                }
+            });
+        }
+
+        document.getElementById("clear-canvas").addEventListener("click", function() {
+            const clearSelect = document.getElementById("clear-select");
+            const selectedValue = clearSelect.value;
+            switch (selectedValue) {
+                case "points":
+                    svg.selectAll("circle").remove();
+                    points = [];
+                    break;
+                case "lines":
+                    svg.selectAll("line").remove();
+                    break;
+                case "arcs":
+                    svg.selectAll("path").remove();
+                    break;
+                case "grid":
+                    svg.selectAll("line").filter(function() { return this.getAttribute("stroke") === "gray"; }).remove();
+                    break;
+                case "all":
+                default:
+                    svg.selectAll("*").remove();
+                    points = [];
+                    break;
+            }
+        });
+
+        document.getElementById("draw-grid").addEventListener("click", function() {
+            drawGrid();
+        });
+    </script>
+</body>
+</html>

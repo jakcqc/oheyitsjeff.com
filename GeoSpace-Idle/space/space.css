@@ -43,6 +43,9 @@ z-index: 100;
     background: rgb(255, 255, 255,.99);
 
 }
+input{
+    border: 10px solid white;
+}
 .breathe{
     transition: .4s;
     animation: breather 2s ease-in-out alternate infinite;
