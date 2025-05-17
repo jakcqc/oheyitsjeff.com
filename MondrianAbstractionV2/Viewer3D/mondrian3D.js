@@ -23,7 +23,7 @@ const animatingObjects = new Set();
 let elementsGroup; // Group to hold all interactive elements
 let baseShapeBool = [false,true,false];
 // Configuration
-let currentBaseShape = 'cube'; // 'cube', 'sphere', 'plane' (original)
+let currentBaseShape = 'sphere'; // 'cube', 'sphere', 'plane' (original)
 let currentElementShape = 'cube3d'; // 'square', 'circle', 'triangle'
 let elementSize = 40; // Base size of the 2D elements
 let boundsSize = 400; // Size of the 3D bounding shape

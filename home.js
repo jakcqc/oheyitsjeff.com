@@ -24,14 +24,14 @@ const projects = [
   {
     title: "Mondrian Abstraction 3D",
     image: "assets/Images/mond4D.png",
-    description: "Ever wonder what A mondrian would like look like in 3D? How about 4D? 5...?.",
+    description: "Ever wonder what A Mondrian Composition would like look like in 3D? How about 4D? 5...?",
     link: "/MondrianAbstractionV2/Viewer3D/"
   },
   {
-    title: "Mondrian Abstraction",
-    image: "assets/Images/MondrianAbstraction.png",
-    description: "A fun take on the popular Mondrian Composition using D3.js.",
-    link: "/MondrianAbstraction/"
+    title: "Particle_Explorer",
+    image: "assets/Images/part.png",
+    description: "Watch Life emerge or fade...You decide, inspired by hunar4321.",
+    link: "/ParticleExplorer/index.html"
   },
   {
     title: "InnerLight",
@@ -39,6 +39,14 @@ const projects = [
     description: "Small shape-based visualizations that use color changes and spatial differences.",
     link: "/InnerLight/"
   },
+  {
+    title: "Mondrian Abstraction",
+    image: "assets/Images/MondrianAbstraction.png",
+    description: "A fun take on the popular Mondrian Composition.",
+    link: "/MondrianAbstraction/"
+  }
+  
+  
   // {
   //   title: "GeoNameSpace",
   //   image: "assets/Images/idleGame.png",

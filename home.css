@@ -101,7 +101,7 @@ body{
     /* border-top: 4px double var(--color-accent);
     border-bottom: 4px double var(--color-accent); */
 
-    height: 190px;
+    height: 180px;
     width: 99%;
     object-fit: cover;
     z-index: 2;
@@ -233,10 +233,10 @@ body{
       max-width: 350px;
     }
     .thumb{
-      height: 13=50px;
+      height: 150px;
     }
     .apps{
-      height: 420px;
+      height: 320px;
     }
     #pinkBack{
       background: var(--color-main);

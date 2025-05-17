@@ -29,7 +29,7 @@
     }
     #button-exit{
       position:absolute; 
-      left: 2px;
+      left: 20px;
        border: 5px dashed black;
        height: auto;
        transition: .2s;
