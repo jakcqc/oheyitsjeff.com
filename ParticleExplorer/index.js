@@ -71,7 +71,7 @@ function initThree() {
   scene.background = new THREE.Color(0x000000);
 
   // Camera
-  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 10000);
+  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 50000);
   camera.position.set(0, 0, 800);
 
   // Renderer & Composer
@@ -166,8 +166,8 @@ function appendParticleGroup()
         selfWeight: THREE.MathUtils.randFloat(-200,200),
         selfRadius: THREE.MathUtils.randFloat(5,500),
         // How group 0 (red) is affected by [red, green, blue]:
-        interactWeights: randArray(-200,200,groups.num+1), // [red, green, blue]
-        interactRadii:   randArray(50,1000,groups.num+1),
+        interactWeights: randArray(-200,200,groups.length+1), // [red, green, blue]
+        interactRadii:   randArray(50,1000,groups.length+1),
       });
     //add interacitons for new particle getting added
     groups.forEach(function(element, index) {
