@@ -604,7 +604,6 @@ document.addEventListener("DOMContentLoaded", function () {
 // === INIT ===
     initThree();
     initInstances();
-    console.log(meshes)
     animate();
 });
 // OPTIONAL: navigation helper

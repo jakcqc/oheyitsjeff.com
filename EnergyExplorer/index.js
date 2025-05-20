@@ -5,12 +5,102 @@ function isMobile() {
     //return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
     return true;
   }
+  // voxel grid parameters
+  let spaceConfig = {
+    voxelDim: 35,
+    voxelSize: 1,
+    voxelCount:0,
+    voxels: null,
+    voxelMeshes: null,
+    minOpacity: 0.1,  // Minimum opacity for visible voxels
+    maxOpacity: 0.9   // Maximum opacity for dense voxels
+
+  };
+
+// replace your old initVoxelGrid() with this:
+// Modified voxel grid setup for normal meshes
+function initVoxelGrid() {
+  const S = globalConfig.SimulationBounds;
+  const D = spaceConfig.voxelDim;
+
+  // 1. compute grid parameters
+  spaceConfig.voxelSize = (S * 2) / D;
+  spaceConfig.voxelCount = D ** 3;
+  console.log("voxel count ", spaceConfig.voxelCount);
+  console.log("voxel size ", spaceConfig.voxelSize);
+
+  // 2. if we already added meshes, remove & dispose them
+  if (spaceConfig.voxelMeshes) {
+      spaceConfig.voxelMeshes.forEach(mesh => {
+          scene.remove(mesh);
+          mesh.geometry.dispose();
+          mesh.material.dispose();
+      });
+  }
+
+  // 3. Create array to hold all voxel meshes
+  spaceConfig.voxelMeshes = [];
+
+  // 4. Create geometry once and reuse it
+  const geo = new THREE.BoxGeometry(
+      spaceConfig.voxelSize * 0.95, // Make slightly smaller to see gaps
+      spaceConfig.voxelSize * 0.95,
+      spaceConfig.voxelSize * 0.95
+  );
+
+  // 5. Create a mesh for each voxel
+  for (let idx = 0; idx < spaceConfig.voxelCount; idx++) {
+      // convert flat idx → i,j,k
+      const i = idx % D;
+      const j = Math.floor((idx / D) % D);
+      const k = Math.floor(idx / (D * D));
+      
+      // Create material for this voxel (transparent initially)
+      const mat = new THREE.MeshBasicMaterial({ 
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.1,
+          side: THREE.DoubleSide
+      });
+
+      // Create mesh
+      const mesh = new THREE.Mesh(geo, mat);
+      
+      // Position at voxel center
+      mesh.position.set(
+          i * spaceConfig.voxelSize - S + spaceConfig.voxelSize * 0.5,
+          j * spaceConfig.voxelSize - S + spaceConfig.voxelSize * 0.5,
+          k * spaceConfig.voxelSize - S + spaceConfig.voxelSize * 0.5
+      );
+
+      // Add to scene and store reference
+      scene.add(mesh);
+      spaceConfig.voxelMeshes.push(mesh);
+  }
+  
+  console.log("Created", spaceConfig.voxelMeshes.length, "voxel meshes");
+}
+
+
+function getVoxelIndex(x, y, z) {
+  const S = globalConfig.SimulationBounds;
+  // normalize [−S…+S] → [0…voxelDim−1]
+  const ix = Math.floor((x + S) / (2 * S) * spaceConfig.voxelDim);
+  const iy = Math.floor((y + S) / (2 * S) * spaceConfig.voxelDim);
+  const iz = Math.floor((z + S) / (2 * S) * spaceConfig.voxelDim);
+  // clamp in case particles stray just outside
+  const cx = THREE.MathUtils.clamp(ix, 0, spaceConfig.voxelDim - 1);
+  const cy = THREE.MathUtils.clamp(iy, 0, spaceConfig.voxelDim - 1);
+  const cz = THREE.MathUtils.clamp(iz, 0, spaceConfig.voxelDim - 1);
+  return cx + cy * spaceConfig.voxelDim + cz * spaceConfig.voxelDim * spaceConfig.voxelDim;
+}
+
 // === PARAMETERS (mirrors PartInfo) ===
 let groups = [
     {
       amount: 400,
-      particleRadius:4,
       color: 0xff4444, // red
+      rgbColor: hexToRgb(0xff4444),
       selfWeight: 50,
       selfRadius: 10,
       // How group 0 (red) is affected by [red, green, blue]:
@@ -19,8 +109,8 @@ let groups = [
     },
     {
       amount: 550,
-      particleRadius:3,
       color: 0x44ff44, // green
+      rgbColor: hexToRgb(0x44ff44),
       selfWeight: -30,
       selfRadius: 10,
       // How group 1 (green) is affected by [red, green, blue]:
@@ -29,8 +119,8 @@ let groups = [
     },
     {
       amount: 500,
-      particleRadius:3,
       color: 0x4444ff, // blue
+      rgbColor: hexToRgb(0x4444ff),
       selfWeight: 80,
       selfRadius: 10,
       // How group 2 (blue) is affected by [red, green, blue]:
@@ -39,11 +129,18 @@ let groups = [
     },
   ];
   let globalConfig = {
-    SimulationBounds: 3000,
+    SimulationBounds: 1200,
     velocityScale: [0.9,0.9,0.9],
-    interactionScaling: 1300,
+    interactionScaling: 300,
     baseParticleSize:1,
 
+  }
+  function hexToRgb(hex) {
+    return [
+      (hex >> 16) & 0xff,
+      (hex >> 8) & 0xff,
+       hex & 0xff
+    ];
   }
   
   window.addEventListener('mousedown', (e) => {
@@ -59,10 +156,9 @@ let groups = [
 // === GLOBALS ===
 let scene, camera, renderer, composer;
 let controls, raycaster, pointer;
-let meshes = [], positions = [], velocities = [];
+let positions = [], velocities = [];
 let width, height;
-const dummy = new THREE.Object3D();
-
+// === INIT THREE ===
 // === INIT THREE ===
 function initThree() {
   const container = document.getElementById('vis');
@@ -72,8 +168,8 @@ function initThree() {
   scene.background = new THREE.Color(0x000000);
 
   // Camera
-  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 50000);
-  camera.position.set(0, 0, 800);
+  camera = new THREE.PerspectiveCamera(60, width / height, 1, 30000);
+  camera.position.set(0, 0, globalConfig.SimulationBounds * 2);
 
   // Renderer & Composer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -86,44 +182,45 @@ function initThree() {
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
 
-// MOBILE VS DESKTOP CONTROLS
-if (isMobile()) {
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.enableZoom = true;
-    controls.enablePan = true;
-    controls.target.set(0, 0, 0);
+  // MOBILE VS DESKTOP CONTROLS
+  if (isMobile()) {
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.1;
+      controls.enableZoom = true;
+      controls.enablePan = true;
+      controls.target.set(0, 0, 0);
   } else {
-    controls = new FirstPersonControls(camera, renderer.domElement);
-    controls.movementSpeed = 140;
-    controls.lookSpeed = 0.3;
-    controls.lookVertical = true;
-    controls.activeLook = false;
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
-    }
-  //controls.target.set(0,0,0);
+      controls = new FirstPersonControls(camera, renderer.domElement);
+      controls.movementSpeed = 140;
+      controls.lookSpeed = 0.3;
+      controls.lookVertical = true;
+      controls.activeLook = false;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.screenSpacePanning = false;
+  }
 
   // Handle resize
   window.addEventListener('resize', onWindowResize, false);
+  
+  // Mouse event handlers for FirstPersonControls
+  window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && controls.activeLook !== undefined) controls.activeLook = true;
+  });
+  window.addEventListener('mouseup', (e) => {
+      if (e.button === 0 && controls.activeLook !== undefined) controls.activeLook = false;
+  });
+  window.addEventListener('mouseleave', () => {
+      if (controls.activeLook !== undefined) controls.activeLook = false;
+  });
 }
 
 // === INIT INSTANCED MESHES ===
 function initInstances() {
 
   groups.forEach((grp, gi) => {
-    // material per group
-    const baseGeo = new THREE.BoxGeometry(grp.particleRadius + globalConfig.baseParticleSize,grp.particleRadius+globalConfig.baseParticleSize, grp.particleRadius+globalConfig.baseParticleSize);
-    const mat = new THREE.MeshBasicMaterial({
-        color: grp.color
-      });
-    // create instanced mesh
-    const mesh = new THREE.InstancedMesh(baseGeo, mat, grp.amount);
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    scene.add(mesh);
-    meshes.push(mesh);
+  
 
     // data buffers
     const posArr = new Float32Array(grp.amount * 3);
@@ -138,6 +235,7 @@ function initInstances() {
     velocities.push(velArr);
   });
 }
+
 // Helper to convert hex color to string (e.g., 0xff4444 -> "#ff4444")
 function hexToHtmlColor(hex) {
     return "#" + (hex & 0xffffff).toString(16).padStart(6, "0");
@@ -216,10 +314,11 @@ window.exportParticleConfig = exportParticleConfig;
 function appendParticleGroup()
 {
     //add new particle
+    const rh = randHex();
     groups.push({
         amount: Math.floor(THREE.MathUtils.randFloat(100,400)),
-        color: htmlColorToHex(randHex()), 
-        particleRadius:Math.floor(THREE.MathUtils.randFloat(1,4)),
+        color: htmlColorToHex(rh), 
+        rgbColor: hexToRgb(rh),
         selfWeight: THREE.MathUtils.randFloat(-200,200),
         selfRadius: THREE.MathUtils.randFloat(5,500),
         // How group 0 (red) is affected by [red, green, blue]:
@@ -274,10 +373,6 @@ function createParticleConfigUI() {
         // Amount input
         groupDiv.appendChild(makeInputRow("Amount", "number", group.amount, (val) => {
             groups[gi].amount = Number(val);
-            onParticleConfigChanged();
-        }));
-        groupDiv.appendChild(makeInputRow("ParticleRadiusSize", "number", group.particleRadius, (val) => {
-            groups[gi].particleRadius = Number(val);
             onParticleConfigChanged();
         }));
         // Color input
@@ -355,15 +450,15 @@ function createGlobalConfigUI() {
     }
   
     // SimulationBounds
-    container.appendChild(makeInputRow(
-      "Simulation Bounds",
-      "number",
-      config.SimulationBounds,
-      (val) => {
-        config.SimulationBounds = Number(val);
-        onParticleConfigChanged();
-      }
-    ));
+    // container.appendChild(makeInputRow(
+    //   "Simulation Bounds",
+    //   "number",
+    //   config.SimulationBounds,
+    //   (val) => {
+    //     config.SimulationBounds = Number(val);
+    //     onParticleConfigChanged();
+    //   }
+    // ));
   
     // velocityScale (array input)
     function makeVectorInputRow(label, arr, onChange) {
@@ -389,11 +484,11 @@ function createGlobalConfigUI() {
       return row;
     }
   
-    container.appendChild(makeVectorInputRow(
-      "Velocity Scale",
-      config.velocityScale,
-      onParticleConfigChanged
-    ));
+    // container.appendChild(makeVectorInputRow(
+    //   "Velocity Scale",
+    //   config.velocityScale,
+    //   onParticleConfigChanged
+    // ));
   
     // interactionScaling
     container.appendChild(makeInputRow(
@@ -406,11 +501,11 @@ function createGlobalConfigUI() {
       }
     ));
     container.appendChild(makeInputRow(
-        "Base Particle Scale",
+        "Voxel Division",
         "number",
-        config.baseParticleSize,
+        spaceConfig.voxelDim,
         (val) => {
-          config.baseParticleSize = Number(val);
+          spaceConfig.voxelDim = Number(val);
           onParticleConfigChanged();
         }
       ));
@@ -486,23 +581,23 @@ function onParticleConfigChanged() {
     // 2. Re-init data arrays
     positions = [];
     velocities = [];
-    meshes = [];
+    spaceConfig.voxelMeshes = [];
 
     // 3. Re-create instances with new group settings
+    initThree();
     initInstances();
-
+    initVoxelGrid();
     // If you need to update lighting, colors, camera, etc, add here.
 }
 
 // Your existing deleteScene() implementation (just make sure this exists!)
 function deleteScene() {
     // Remove all meshes from scene
-    meshes.forEach(mesh => {
-        scene.remove(mesh);
+    spaceConfig.voxelMeshes.forEach(mesh => {
         if (mesh.geometry) mesh.geometry.dispose();
         if (mesh.material) mesh.material.dispose();
     });
-    meshes = [];
+    spaceConfig.voxelMeshes = [];
     positions = [];
     velocities = [];
 }
@@ -525,86 +620,132 @@ function onWindowResize() {
     initThree();
     onParticleConfigChanged();
 }
+function updateVoxel(voxel, newColor) {
+  const [r, g, b, count] = voxel;
+  const newCount = count + 1;
+
+  // Compute running average
+  voxel[0] = (r * count + newColor[0]) / newCount;
+  voxel[1] = (g * count + newColor[1]) / newCount;
+  voxel[2] = (b * count + newColor[2]) / newCount;
+  voxel[3] = newCount;
+  return voxel;
+}
+
 let lastTime = performance.now();
 // === ANIMATION LOOP ===
+// Update voxel color directly in animate()
 function animate() {
   requestAnimationFrame(animate);
   const now = performance.now();
   const delta = (now - lastTime) / 1000; // in seconds
   lastTime = now;
 
+  // Reset voxel grid
+  spaceConfig.voxels = new Array(spaceConfig.voxelCount).fill().map(() => [1, 1, 1, 0]);
+
   controls.update(delta);
 
   groups.forEach((grpA, giA) => {
-    const posA = positions[giA];
-    const velA = velocities[giA];
-    const nA = grpA.amount;
-    const meshA = meshes[giA];
-  
-    for (let i = 0; i < nA; i++) {
-      let fx = 0, fy = 0, fz = 0;
-      const ixA = 3*i, iyA = ixA+1, izA = ixA+2;
-      const x1 = posA[ixA], y1 = posA[iyA], z1 = posA[izA];
-  
-      // Loop through ALL groups to calculate the force from every other group
-      groups.forEach((grpB, giB) => {
-        const posB = positions[giB];
-        const nB = grpB.amount;
-        const G = grpA.interactWeights[giB] / globalConfig.interactionScaling; // note: this is how A is affected by B!
-        const R2 = grpA.interactRadii[giB] * grpA.interactRadii[giB];
-  
-        for (let j = 0; j < nB; j++) {
-          if (giA === giB && i === j) continue; // don't self-interact
-  
-          const ixB = 3*j, iyB = ixB+1, izB = ixB+2;
-          const dx = x1 - posB[ixB];
-          const dy = y1 - posB[iyB];
-          const dz = z1 - posB[izB];
-          const d2 = dx*dx + dy*dy + dz*dz;
-  
-          if (d2 > 0 && d2 < R2) {
-            const inv = 1 / Math.sqrt(d2);
-            fx += dx * inv * G;
-            fy += dy * inv * G;
-            fz += dz * inv * G;
-          }
-        }
-      });
-  
-      velA[ixA] = (velA[ixA] + fx) * globalConfig.velocityScale[0];
-      velA[iyA] = (velA[iyA] + fy) * globalConfig.velocityScale[1];
-      velA[izA] = (velA[izA] + fz) * globalConfig.velocityScale[2];
-    }
-  
-    // Update positions & instance matrices (as before)
-    for (let i = 0; i < nA; i++) {
-      const ixA = 3*i, iyA = ixA+1, izA = ixA+2;
-      posA[ixA] += velA[ixA];
-      posA[iyA] += velA[iyA];
-      posA[izA] += velA[izA];
-  
-      // bounding
-      for (let k = 0; k < 3; k++) {
-        if (posA[3*i+k] < -globalConfig.SimulationBounds || posA[3*i+k] > globalConfig.SimulationBounds) velA[3*i+k] *= -1;
+      const posA = positions[giA];
+      const velA = velocities[giA];
+      const nA = grpA.amount;
+      for (let i = 0; i < nA; i++) {
+          let fx = 0, fy = 0, fz = 0;
+          const ixA = 3 * i, iyA = ixA + 1, izA = ixA + 2;
+          const x1 = posA[ixA], y1 = posA[iyA], z1 = posA[izA];
+
+          // Loop through ALL groups to calculate the force from every other group
+          groups.forEach((grpB, giB) => {
+              const posB = positions[giB];
+              const nB = grpB.amount;
+              const G = grpA.interactWeights[giB] / globalConfig.interactionScaling;
+              const R2 = grpA.interactRadii[giB] * grpA.interactRadii[giB];
+
+              for (let j = 0; j < nB; j++) {
+                  if (giA === giB && i === j) continue; // don't self-interact
+
+                  const ixB = 3 * j, iyB = ixB + 1, izB = ixB + 2;
+                  const dx = x1 - posB[ixB];
+                  const dy = y1 - posB[iyB];
+                  const dz = z1 - posB[izB];
+                  const d2 = dx * dx + dy * dy + dz * dz;
+
+                  if (d2 > 0 && d2 < R2) {
+                      const inv = 1 / Math.sqrt(d2);
+                      fx += dx * inv * G;
+                      fy += dy * inv * G;
+                      fz += dz * inv * G;
+                  }
+              }
+          });
+
+          velA[ixA] = (velA[ixA] + fx) * globalConfig.velocityScale[0];
+          velA[iyA] = (velA[iyA] + fy) * globalConfig.velocityScale[1];
+          velA[izA] = (velA[izA] + fz) * globalConfig.velocityScale[2];
       }
-  
-      dummy.position.set(posA[ixA], posA[iyA], posA[izA]);
-      dummy.updateMatrix();
-      meshA.setMatrixAt(i, dummy.matrix);
-    }
-    meshA.instanceMatrix.needsUpdate = true;
+
+      const color = grpA.rgbColor;
+      // Update positions & voxel colors
+      for (let i = 0; i < nA; i++) {
+          const ixA = 3 * i, iyA = ixA + 1, izA = ixA + 2;
+          const idx = getVoxelIndex(posA[ixA], posA[iyA], posA[izA]);
+          spaceConfig.voxels[idx] = updateVoxel(spaceConfig.voxels[idx], color);
+
+          posA[ixA] += velA[ixA];
+          posA[iyA] += velA[iyA];
+          posA[izA] += velA[izA];
+
+          // bounding
+          for (let k = 0; k < 3; k++) {
+              if (posA[3 * i + k] < -globalConfig.SimulationBounds || posA[3 * i + k] > globalConfig.SimulationBounds) {
+                  velA[3 * i + k] *= -1;
+              }
+          }
+      }
   });
 
-  // render through composer for glow
+  // Update voxel colors and transparency
+  const voxelMeshes = spaceConfig.voxelMeshes;
+  if (voxelMeshes) {
+      // Find max particle count for normalization
+      let maxCount = 1;
+      for (let idx = 0; idx < spaceConfig.voxelCount; idx++) {
+          const count = spaceConfig.voxels[idx][3];
+          if (count > maxCount) maxCount = count;
+      }
+
+      for (let idx = 0; idx < spaceConfig.voxelCount; idx++) {
+          const [r, g, b, count] = spaceConfig.voxels[idx];
+          const mesh = voxelMeshes[idx];
+
+          if (count > 0) {
+              // Calculate opacity based on particle density
+              const normalizedCount = count / maxCount;
+              const opacity = spaceConfig.minOpacity + 
+                             (spaceConfig.maxOpacity - spaceConfig.minOpacity) * normalizedCount;
+
+              // Set color and opacity
+              mesh.material.color.setRGB(r / 255, g / 255, b / 255);
+              mesh.material.opacity = opacity;
+              mesh.visible = true;
+          } else {
+              // Hide empty voxels
+              mesh.visible = false;
+          }
+      }
+  }
+
   renderer.render(scene, camera);
 }
+
 document.addEventListener("DOMContentLoaded", function () {
     width = window.innerWidth;
     height = window.innerHeight;
 // === INIT ===
     initThree();
     initInstances();
-    console.log(meshes)
+    initVoxelGrid();
     animate();
 });
 // OPTIONAL: navigation helper
