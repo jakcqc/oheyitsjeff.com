@@ -8,9 +8,13 @@ const AppState = {
   width: window.innerWidth,
   height: window.innerHeight,
   svg: null,
-  shouldCreateFlags: [true, true, false, false, false, false], // Initial active shapes: Lotus, Circle
+  shouldCreateFlags: [true, false, true, false, false, false], // Initial active shapes: Lotus, Circle
   shouldMoveShapes: true,
   isInfoBoxOpen: false,
+};
+const DragHoverState = {
+  isDragging: false,
+  hoveredElements: new WeakSet()
 };
 
 // Default configurations for shapes
@@ -24,7 +28,7 @@ const ShapeDefaults = {
       initialPointsPercent: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
       lotusScale: 4,
       initialTotalPercentChange: 5, // This value is used for offsetting points
-      hueIncrement: 1.3,
+      hueIncrement: 2.0,
   },
   square: {
       count: 80,
@@ -35,30 +39,30 @@ const ShapeDefaults = {
       initialPointsPercent: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
       initialTotalPercentChange: 20,
       squareScale:1,
-      hueIncrement: 1.0,
+      hueIncrement: 2.0,
   },
   circle: {
       // Adjust count based on screen size, ensuring a minimum
-      count: () => Math.max(100, Math.floor(Math.min(AppState.width, AppState.height) / (2 * 5 * Math.max(0.5, AppState.height / 1000) )) -2),
+      count: () => Math.min(85,Math.max(100, Math.floor(Math.min(AppState.width, AppState.height) / (2 * 5 * Math.max(0.5, AppState.height / 1000) )) -2)),
       baseStrokeWidth: "2px",
       hoverStrokeWidths: ["10px", "15px"],
       fillOpacity: 0.45,
       className: "circle",
       initialRadius: 10,
       radiusIncrement: 5,
-      hueIncrement: 1.0,
+      hueIncrement: 2.0,
       centerX: () => AppState.width / 2,
       centerY: () => AppState.height / 2,
   },
   rect: {
-      count: () => Math.max(70, Math.floor(Math.min(AppState.width, AppState.height) / (2 * 30 * Math.max(0.5, AppState.height / 1000))) -2),
+      count: () => Math.min(80,Math.max(70, Math.floor(Math.min(AppState.width, AppState.height) / (2 * 30 * Math.max(0.5, AppState.height / 1000))) -2)),
       baseStrokeWidth: "0.6vh",
       hoverStrokeWidth1: "2vh", // Used in common handler's hoverStrokeWidths
       fillOpacity: 0.45,
       className: "rect",
       initialSize: 10,
       sizeIncrement: 30,
-      hueIncrement: 0.8,
+      hueIncrement: 1.8,
       centerX: () => AppState.width / 2,
       centerY: () => AppState.height / 2,
   },
@@ -75,7 +79,7 @@ const ShapeDefaults = {
       className: "prism",
       initialRadius: 10, // Initial radius for the sequence of circles
       radiusIncrementPerGroup: 25, // How much radius increases periodically
-      hueIncrement: 1.0,
+      hueIncrement: 2.0,
   },
   user: { // Default config for user-defined shapes
       shapeType: 'circle',
@@ -103,14 +107,33 @@ const SvgUtils = {
       AppState.svg = d3.select(selector).append("svg")
           .attr("width", svgWidth)
           .attr("height", svgHeight)
-          .on("pointermove", function(event) {
-            //const [x, y] = d3.pointer(event);
-            //const el = document.elementFromPoint(x, y);
-            //this.parentNode.appendChild(el);
-            //console.log(el)
-            
-           
-          });
+         .on("pointerdown", function(event) {
+        DragHoverState.isDragging = true;
+        DragHoverState.hoveredElements = new WeakSet(); // Reset on new drag
+    })
+    .on("pointerup", function(event) {
+        DragHoverState.isDragging = false;
+    })
+    .on("pointerleave", function(event) {
+        DragHoverState.isDragging = false;
+    })
+    .on("pointermove", function(event) {
+        if (!DragHoverState.isDragging) return;
+
+        const [x, y] = d3.pointer(event);
+        const el = document.elementFromPoint(x, y);
+
+        // Only simulate if it's a shape element and we haven't hovered it yet
+        if (
+            el && 
+            el.tagName !== 'svg' &&
+            el.dataset.animating !== "true"
+        ) {
+            DragHoverState.hoveredElements.add(el);
+            const simulatedEvent = new PointerEvent("pointermove", event);
+            el.dispatchEvent(simulatedEvent);
+        }
+    });
 
       // Update AppState with actual SVG dimensions used
       AppState.width = svgWidth;
@@ -139,6 +162,11 @@ const ShapeDrawer = {
    */
   commonMouseoverHandler: function(event, d, handlerConfig) {
     if (!AppState.shouldMoveShapes) return;
+    // Skip if already animating
+    if (this.dataset.animating === "true") return;
+
+    this.dataset.animating = "true";
+
     this.parentNode.appendChild(this);
     const element = d3.select(this);
     // element.raise(); // Bring to front if desired
@@ -149,7 +177,7 @@ const ShapeDrawer = {
         hoverStrokeWidths: ['3px'],
         hoverStrokeColors: [],
         fillOpacity: 0.2,
-        hueIncrement: 1.0,
+        hueIncrement: 2.0,
         elementHue: undefined,
         // finalStrokeColor is no longer used since we won't revert
         transitionDuration: 300
@@ -177,7 +205,10 @@ const ShapeDrawer = {
             .style("stroke-width", width)
             .style("stroke", strokeForThisStep)
             .transition()
-            .duration(config.transitionDuration);
+            .duration(config.transitionDuration)
+            .on("end", function() {
+            this.dataset.animating = "false";
+        });
     });
 
     // Removed the final revert to original color so the last hover state remains
@@ -626,7 +657,7 @@ const UIController = {
 function initializeApp() {
   // Update AppState with current window dimensions before creating SVG
   AppState.width = window.innerWidth;
-  AppState.height = window.innerHeight;
+  AppState.height = window.innerHeight -60;
 
   SvgUtils.createSvgContainer("#vis"); // Uses AppState.width/height
   console.log("SVG Initialized. Actual Height:", AppState.height); // Original log, now reflects potentially ceiled height

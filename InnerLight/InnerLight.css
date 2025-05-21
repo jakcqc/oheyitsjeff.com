@@ -32,6 +32,8 @@ svg {
     border: 3px solid black;
 
 }
+
+
 .button:checked{
   border: 3px solid #fdfdfd;
   color: rgb(255, 235, 235);
@@ -43,7 +45,6 @@ svg {
     border-radius: 5px;
     border-bottom: 3px solid white;
     border-top: 3px solid white;
-
     color: rgb(255, 235, 235);
 }
 }
@@ -143,4 +144,15 @@ svg {
   padding: 2px;
   height: 55px;
 
+}
+@media only screen and (max-width: 440px) {
+  button {
+    font-size: 12px; /* Adjust this size as needed */
+    padding: 1px;
+    margin: 1px;
+  }
+  #button-exit{
+    left: 10px;
+  }
+  #info{right: 10px;}
 }

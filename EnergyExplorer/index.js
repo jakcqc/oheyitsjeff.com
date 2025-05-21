@@ -40,6 +40,7 @@ function initVoxelGrid() {
 
   // 3. Create array to hold all voxel meshes
   spaceConfig.voxelMeshes = [];
+  spaceConfig.voxels = new Array(spaceConfig.voxelCount).fill().map(() => [1, 1, 1, 0]);
 
   // 4. Create geometry once and reuse it
   const geo = new THREE.BoxGeometry(
@@ -76,6 +77,7 @@ function initVoxelGrid() {
       // Add to scene and store reference
       scene.add(mesh);
       spaceConfig.voxelMeshes.push(mesh);
+
   }
   
   console.log("Created", spaceConfig.voxelMeshes.length, "voxel meshes");
@@ -101,8 +103,7 @@ let groups = [
       amount: 400,
       color: 0xff4444, // red
       rgbColor: hexToRgb(0xff4444),
-      selfWeight: 50,
-      selfRadius: 10,
+      particleRadius:1,
       // How group 0 (red) is affected by [red, green, blue]:
       interactWeights: [ 50, -20,  60 ], // [red, green, blue]
       interactRadii:   [ 100, 300, 200 ],
@@ -111,8 +112,8 @@ let groups = [
       amount: 550,
       color: 0x44ff44, // green
       rgbColor: hexToRgb(0x44ff44),
-      selfWeight: -30,
-      selfRadius: 10,
+      particleRadius:1,
+
       // How group 1 (green) is affected by [red, green, blue]:
       interactWeights: [ -30, 90, -50 ],
       interactRadii:   [ 300, 150, 350 ],
@@ -121,8 +122,8 @@ let groups = [
       amount: 500,
       color: 0x4444ff, // blue
       rgbColor: hexToRgb(0x4444ff),
-      selfWeight: 80,
-      selfRadius: 10,
+      particleRadius:1,
+
       // How group 2 (blue) is affected by [red, green, blue]:
       interactWeights: [ 80, -10, 40 ],
       interactRadii:   [ 200, 350, 180 ],
@@ -238,8 +239,14 @@ function initInstances() {
 
 // Helper to convert hex color to string (e.g., 0xff4444 -> "#ff4444")
 function hexToHtmlColor(hex) {
+
     return "#" + (hex & 0xffffff).toString(16).padStart(6, "0");
 }
+// Helper to convert "#ff4444" to 0xff4444
+function htmlColorToHexNumber(hexStr) {
+    return 0xFFFFFF & parseInt(hexStr.replace("#", ""), 16);
+}
+
 // Helper to convert html color string (e.g., "#ff4444") to hex number
 function htmlColorToHex(str) {
     return parseInt(str.replace("#", ""), 16);
@@ -247,6 +254,16 @@ function htmlColorToHex(str) {
 function randHex(){
     return "#" + Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, "0");
 }
+function hexStringToRgb(hexStr) {
+    // Remove "#" if present and convert to integer
+    const hex = parseInt(hexStr.replace("#", ""), 16);
+    return [
+        (hex >> 16) & 0xff, // Red
+        (hex >> 8) & 0xff,  // Green
+        hex & 0xff          // Blue
+    ];
+}
+
 function randArray(min,max, num)
 {
     let tempArr = [];
@@ -303,7 +320,19 @@ function importParticleConfig(input) {
         return;
     }
     // Set and re-init
-    groups = data.groups;
+    groups = data.groups.map(group => {
+    // Clone the group to avoid mutating the original
+    const newGroup = { ...group };
+
+    // Ensure `rgbColor` exists by converting from `color`
+    if (!newGroup.rgbColor && newGroup.color !== undefined) {
+        newGroup.rgbColor = hexToRgb(newGroup.color);
+    }    
+
+    // You can add more fallback checks here as needed
+    return newGroup;
+});
+
     globalConfig = data.globalConfig;
 
     // Refresh everything
@@ -317,10 +346,9 @@ function appendParticleGroup()
     const rh = randHex();
     groups.push({
         amount: Math.floor(THREE.MathUtils.randFloat(100,400)),
-        color: htmlColorToHex(rh), 
-        rgbColor: hexToRgb(rh),
-        selfWeight: THREE.MathUtils.randFloat(-200,200),
-        selfRadius: THREE.MathUtils.randFloat(5,500),
+        color: htmlColorToHexNumber(rh), 
+        rgbColor: hexStringToRgb(rh),
+        particleRadius:2,
         // How group 0 (red) is affected by [red, green, blue]:
         interactWeights: randArray(-200,200,groups.length+1), // [red, green, blue]
         interactRadii:   randArray(50,1000,groups.length+1),
@@ -378,18 +406,7 @@ function createParticleConfigUI() {
         // Color input
         groupDiv.appendChild(makeInputRow("Color", "color", hexToHtmlColor(group.color), (val) => {
             groups[gi].color = htmlColorToHex(val);
-            onParticleConfigChanged();
-        }));
-
-        // Self Weight
-        groupDiv.appendChild(makeInputRow("Self Weight", "number", group.selfWeight, (val) => {
-            groups[gi].selfWeight = Number(val);
-            onParticleConfigChanged();
-        }));
-
-        // Self Radius
-        groupDiv.appendChild(makeInputRow("Self Radius", "number", group.selfRadius, (val) => {
-            groups[gi].selfRadius = Number(val);
+            groups[gi].rgbColor = hexToRgb(groups[gi].color)
             onParticleConfigChanged();
         }));
 
@@ -450,15 +467,15 @@ function createGlobalConfigUI() {
     }
   
     // SimulationBounds
-    // container.appendChild(makeInputRow(
-    //   "Simulation Bounds",
-    //   "number",
-    //   config.SimulationBounds,
-    //   (val) => {
-    //     config.SimulationBounds = Number(val);
-    //     onParticleConfigChanged();
-    //   }
-    // ));
+    container.appendChild(makeInputRow(
+      "Simulation Bounds",
+      "number",
+      config.SimulationBounds,
+      (val) => {
+        config.SimulationBounds = Number(val);
+        onParticleConfigChanged();
+      }
+    ));
   
     // velocityScale (array input)
     function makeVectorInputRow(label, arr, onChange) {
@@ -577,12 +594,6 @@ window.showConfig = showConfig;
 function onParticleConfigChanged() {
     // 1. Delete old scene stuff
     deleteScene();
-
-    // 2. Re-init data arrays
-    positions = [];
-    velocities = [];
-    spaceConfig.voxelMeshes = [];
-
     // 3. Re-create instances with new group settings
     initThree();
     initInstances();
@@ -596,10 +607,14 @@ function deleteScene() {
     spaceConfig.voxelMeshes.forEach(mesh => {
         if (mesh.geometry) mesh.geometry.dispose();
         if (mesh.material) mesh.material.dispose();
+        //scene.remove(mesh);
     });
-    spaceConfig.voxelMeshes = [];
+    spaceConfig.voxelMeshes = null;
     positions = [];
     velocities = [];
+    spaceConfig.voxelSize = 1;
+    spaceConfig.voxelCount = 0;
+    spaceConfig.voxels= null;
 }
 
 // Call after page loads, and anytime you want to re-render the UI
@@ -621,6 +636,7 @@ function onWindowResize() {
     onParticleConfigChanged();
 }
 function updateVoxel(voxel, newColor) {
+
   const [r, g, b, count] = voxel;
   const newCount = count + 1;
 
@@ -630,6 +646,7 @@ function updateVoxel(voxel, newColor) {
   voxel[2] = (b * count + newColor[2]) / newCount;
   voxel[3] = newCount;
   return voxel;
+  
 }
 
 let lastTime = performance.now();
@@ -637,6 +654,7 @@ let lastTime = performance.now();
 // Update voxel color directly in animate()
 function animate() {
   requestAnimationFrame(animate);
+  if (!spaceConfig.voxels || !spaceConfig.voxelMeshes) return; // Guard early
   const now = performance.now();
   const delta = (now - lastTime) / 1000; // in seconds
   lastTime = now;

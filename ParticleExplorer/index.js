@@ -11,8 +11,6 @@ let groups = [
       amount: 400,
       particleRadius:4,
       color: 0xff4444, // red
-      selfWeight: 50,
-      selfRadius: 10,
       // How group 0 (red) is affected by [red, green, blue]:
       interactWeights: [ 50, -20,  60 ], // [red, green, blue]
       interactRadii:   [ 100, 300, 200 ],
@@ -21,8 +19,6 @@ let groups = [
       amount: 550,
       particleRadius:3,
       color: 0x44ff44, // green
-      selfWeight: -30,
-      selfRadius: 10,
       // How group 1 (green) is affected by [red, green, blue]:
       interactWeights: [ -30, 90, -50 ],
       interactRadii:   [ 300, 150, 350 ],
@@ -31,8 +27,6 @@ let groups = [
       amount: 500,
       particleRadius:3,
       color: 0x4444ff, // blue
-      selfWeight: 80,
-      selfRadius: 10,
       // How group 2 (blue) is affected by [red, green, blue]:
       interactWeights: [ 80, -10, 40 ],
       interactRadii:   [ 200, 350, 180 ],
@@ -180,7 +174,9 @@ function exportParticleConfig() {
         URL.revokeObjectURL(url);
     }, 100);
 }
-
+function htmlColorToHexNumber(hexStr) {
+    return 0xFFFFFF & parseInt(hexStr.replace("#", ""), 16);
+}
 // --- IMPORT FUNCTION ---
 // Accepts either JSON string or JS object.
 function importParticleConfig(input) {
@@ -212,16 +208,29 @@ function importParticleConfig(input) {
     createParticleConfigUI();
     onParticleConfigChanged();
 }
+function hexStringToRgb(hexStr) {
+    // Remove "#" if present and convert to integer
+    const hex = parseInt(hexStr.replace("#", ""), 16);
+    return [
+        (hex >> 16) & 0xff, // Red
+        (hex >> 8) & 0xff,  // Green
+        hex & 0xff          // Blue
+    ];
+}
+function hexStringToHex(hexStr) {
+    // Remove "#" if present and convert to integer
+    return parseInt(hexStr.replace("#", ""), 16);
+    
+}
 window.exportParticleConfig = exportParticleConfig;
 function appendParticleGroup()
-{
+{ 
+  console.log(randHex())
     //add new particle
     groups.push({
         amount: Math.floor(THREE.MathUtils.randFloat(100,400)),
-        color: htmlColorToHex(randHex()), 
+        color: hexStringToHex(randHex()), 
         particleRadius:Math.floor(THREE.MathUtils.randFloat(1,4)),
-        selfWeight: THREE.MathUtils.randFloat(-200,200),
-        selfRadius: THREE.MathUtils.randFloat(5,500),
         // How group 0 (red) is affected by [red, green, blue]:
         interactWeights: randArray(-200,200,groups.length+1), // [red, green, blue]
         interactRadii:   randArray(50,1000,groups.length+1),
@@ -283,18 +292,6 @@ function createParticleConfigUI() {
         // Color input
         groupDiv.appendChild(makeInputRow("Color", "color", hexToHtmlColor(group.color), (val) => {
             groups[gi].color = htmlColorToHex(val);
-            onParticleConfigChanged();
-        }));
-
-        // Self Weight
-        groupDiv.appendChild(makeInputRow("Self Weight", "number", group.selfWeight, (val) => {
-            groups[gi].selfWeight = Number(val);
-            onParticleConfigChanged();
-        }));
-
-        // Self Radius
-        groupDiv.appendChild(makeInputRow("Self Radius", "number", group.selfRadius, (val) => {
-            groups[gi].selfRadius = Number(val);
             onParticleConfigChanged();
         }));
 

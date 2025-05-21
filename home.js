@@ -35,6 +35,7 @@ function getStarPath(x, y, size, r) {
   ].join(" ");
 }
 
+
 // Pick random corners: 0=TL, 1=TR, 2=BL, 3=BR
 function pickCorner() {
   return Math.floor(Math.random()*4);
@@ -210,7 +211,7 @@ const dragBehavior = d3.drag()
     
       // Add the text along the arc
       g.append("text")
-        .attr("dy", 8) // vertical offset, adjust as needed
+        .attr("dy", 6) // vertical offset, adjust as needed
         .append("textPath")
         .style("user-select", "none")          // standard
   .style("-webkit-user-select", "none")  // Safari
@@ -219,22 +220,43 @@ const dragBehavior = d3.drag()
         .attr("xlink:href", `#${arcId}`)
         .attr("startOffset", "50%") // center the text
         .style("text-anchor", "middle")
-        .style("font-size", "1.2rem")
+        .style("font-size", "1.0rem")
         .style("fill", "#333")
         .style("font-family", "inherit")
         .text(d.title);
     });
     function ticked() {
-      node.attr("transform", d => `translate(${d.x},${d.y})`);
-    }
+  node.attr("transform", d => {
+    // clamp inside
+    d.x = Math.max(d.r+textRadius-10, Math.min(width  - d.r-textRadius+10, d.x));
+    d.y = Math.max(d.r+textRadius-10, Math.min(height - d.r-textRadius+10, d.y));
+    return `translate(${d.x},${d.y})`;
+  });
+}
     
-      // D3 force simulation for clumping/touching
-      const simulation = d3.forceSimulation(nodes)
-      .force("center", d3.forceCenter(width / 2, (height-height*0.2) / 2))
-      .force("collide", d3.forceCollide().radius(d => d.r+textRadius).iterations(12)) // high iterations for tightness
-      .force("x", d3.forceX(width / 2).strength(initStrength)) // gentle pull toward center
-      .force("y", d3.forceY(height / 2).strength(initStrength))
-      .on("tick", ticked);
+    // after you’ve set width, height, initStrength, dragSimStrength
+const centerX = width  / 2;
+const centerY = (height - height*0.2) / 2;
+
+// a little helper to know when a node is off-screen (horizontally)
+function isOutX(d) {
+  return d.x < d.r || d.x > width - d.r;
+}
+
+const forceX = d3.forceX(centerX)
+  .strength(d => isOutX(d) ? 0 : initStrength);
+
+const forceY = d3.forceY(centerY)
+  .strength(d => isOutX(d) ? dragSimStrength * 4 : initStrength);
+// note: I multiplied dragSimStrength by 4 here to make the vertical “slide” more pronounced
+// you can tweak that multiplier to taste
+
+const simulation = d3.forceSimulation(nodes)
+  .force("collide", d3.forceCollide().radius(d => d.r + textRadius).iterations(12))
+  .force("x", forceX)
+  .force("y", forceY)
+  .on("tick", ticked);
+
 
   // Title
   // node.append("text")
@@ -384,8 +406,8 @@ function createProjectCards()
 }
 document.addEventListener("DOMContentLoaded", function() {
   width = window.innerWidth;
-  height = window.innerHeight;
-  bubbleRadius = Math.min(window.innerWidth * 0.15, 80);
+  height = window.innerHeight - 68;
+  bubbleRadius = Math.min(window.innerWidth * 0.15, 70);
    // Clear previous svg if any
    d3.select("#d3-container").selectAll("*").remove();
 

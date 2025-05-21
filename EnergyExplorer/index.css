@@ -5,7 +5,7 @@
     font-family: 'Kosugi Maru','Scheherazade','Kumbh Sans','Courier Prime','Alata', sans-serif !important;
   }
   #infoBar{
-    /* background-color: white; */
+    background-color: rgb(22, 22, 22);
     color: rgb(255, 255, 255);
     /* border-top: 5px solid black; */
     border-bottom: 3px solid rgb(0, 255, 55);
@@ -24,6 +24,7 @@
   }
   #button-exit{
     background-color: black;
+    color: white;
     position:absolute; 
     left: 20px;
      border: 5px dashed rgb(255, 255, 255);
@@ -42,6 +43,8 @@
     border-radius: 5px; 
     z-index: 100;
     display:none;
+    color: white;
+
     overflow-y: auto;       /* Only vertical scroll shows if needed */
     /* Optional, for smooth scrolling: */
     scroll-behavior: smooth;
@@ -73,6 +76,7 @@
   }
   #button-config{
     background-color: black;
+    color: white;
     position:absolute; 
      right: 30px;
      padding: 5px;
