@@ -145,6 +145,19 @@ svg {
   height: 55px;
 
 }
+#clickMe{
+  border-color:rgb(198, 138, 253);
+box-shadow: 1px 1px 5px rgb(220, 190, 255);
+  border-radius: 20px;
+  position: absolute;
+  bottom: 20px;
+  left:20px;
+}
+#clickMe:hover{
+  box-shadow: 1px 1px 10px rgb(0, 0, 0);
+    border-color:rgb(138, 253, 147);
+
+}
 @media only screen and (max-width: 440px) {
   button {
     font-size: 12px; /* Adjust this size as needed */

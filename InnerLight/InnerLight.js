@@ -8,7 +8,7 @@ const AppState = {
   width: window.innerWidth,
   height: window.innerHeight,
   svg: null,
-  shouldCreateFlags: [true, false, true, false, false, false], // Initial active shapes: Lotus, Circle
+  shouldCreateFlags: [true, false, true, false, false], // Initial active shapes: Lotus, Circle
   shouldMoveShapes: true,
   isInfoBoxOpen: false,
 };
@@ -19,19 +19,20 @@ const DragHoverState = {
 
 // Default configurations for shapes
 const ShapeDefaults = {
-  lotus: {
-      count: 70,
-      baseStrokeWidth: "0.45vh",
-      hoverStrokeWidth: "3vh", // Used as single item in hoverStrokeWidths array for common handler
-      fillOpacity: 0.2,
-      className: "lotus",
-      initialPointsPercent: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-      lotusScale: 4,
-      initialTotalPercentChange: 5, // This value is used for offsetting points
-      hueIncrement: 2.0,
-  },
+//   lotus: {
+//       count: 10,
+//       baseStrokeWidth: "1vh",
+//       hoverStrokeWidth: "6vh", // Used as single item in hoverStrokeWidths array for common handler
+//       fillOpacity: 0.3,
+//       className: "lotus",
+//       initialPointsPercent: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+//       lotusScale: 2,
+//       initialTotalPercentChange: 50, // This value is used for offsetting points
+//       hueIncrement: 5.0,
+//       animationScale:5.0
+//   },
   square: {
-      count: 80,
+      count: 50,
       baseStrokeWidth: "0.5vh",
       hoverStrokeWidth: "3vh",
       fillOpacity: 0.2,
@@ -191,7 +192,7 @@ const ShapeDrawer = {
         ShapeDrawer._hueState.globalHue = (ShapeDrawer._hueState.globalHue + config.hueIncrement) % 360;
         currentHueForShape = ShapeDrawer._hueState.globalHue;
     }
-    const cycledHueColor = d3.hsl(currentHueForShape, 1, 0.60).toString();
+    const cycledHueColor = d3.hsl(currentHueForShape, 0.5, 0.7).toString();
 
     element.style("stroke", config.initialStrokeColor)
            .style("stroke-width", config.baseStrokeWidth)
@@ -216,7 +217,7 @@ const ShapeDrawer = {
 ,
 
   createLotus: (svg, config) => {
-    const z = 50,
+    const z = 100,
           x_factor = AppState.width / z,
           y_factor = AppState.height / z;
   
@@ -232,8 +233,8 @@ const ShapeDrawer = {
               else if (count8 === 4) { currentSign = [0, 1]; }
               else if (count8 === 6) { currentSign = [-1 * config.lotusScale, config.lotusScale]; }
               else if (count8 === 8) { currentSign = [-1, 0]; }
-              else if (count8 === 10) { currentSign = [-1 * config.lotusScale, -1 * config.lotusScale]; }
-              else if (count8 === 12) { currentSign = [0, -1]; }
+              //else if (count8 === 10) { currentSign = [-1 * config.lotusScale, -1 * config.lotusScale]; }
+              //else if (count8 === 12) { currentSign = [0, -1]; }
               else if (count8 === 14) { currentSign = [config.lotusScale, -1 * config.lotusScale]; }
               else if (count8 === 16) { currentSign = [1, 0]; }
 
@@ -261,7 +262,8 @@ const ShapeDrawer = {
                     hoverStrokeWidths: [config.hoverStrokeWidth], // Common handler expects an array
                     fillOpacity: config.fillOpacity,
                     hueIncrement: config.hueIncrement,
-                    finalStrokeColor: "white"
+                    finalStrokeColor: "white",
+                    transitionDuration:300
                 });
             });
           // .on("mouseover", function(event, d) { // D3 v6 passes event first
@@ -518,7 +520,7 @@ const UIController = {
   updateButtonActiveState: (buttonIndex, isActive) => {
       const buttons = document.getElementsByTagName('button');
       if (buttons[buttonIndex]) { // buttonIndex is 0-based for the button array from HTML
-          buttons[buttonIndex].classList.toggle('button-active', isActive);
+          buttons[buttonIndex+1].classList.toggle('button-active', isActive);
       }
   },
 
@@ -556,7 +558,7 @@ const UIController = {
   },
 
   // Maps flag index (0-5) to shape key names used in configs and function names
-  _shapeKeyMap: ['lotus', 'circle', 'square', 'rect', 'prism', 'user'],
+  _shapeKeyMap: ['circle', 'square', 'rect', 'prism', 'user'],
 
   handleShapeToggle: (flagIndex, shapeKeyNameFromHTML) => {
       // Use flagIndex to get the canonical shapeKeyName, shapeKeyNameFromHTML is for compatibility if HTML calls with string
@@ -652,6 +654,71 @@ const UIController = {
       }
   }
 };
+UIController.animateHoverSequence = function(options = {}) {
+    const {
+        mode = 'index-wise', // 'index-wise', 'shape-wise', 'reverse'
+        interval = 300,       // milliseconds between animation steps
+        shapeClasses = Object.values(ShapeDefaults).map(cfg => cfg.className) // Default to all known shapes
+    } = options;
+
+    // Gather all elements of each shape class
+    const shapeElementsMap = {};
+    shapeClasses.forEach(className => {
+        const elements = Array.from(document.querySelectorAll(`.${className}`));
+        if (elements.length > 0) shapeElementsMap[className] = elements;
+    });
+
+    if (Object.keys(shapeElementsMap).length === 0) {
+        console.warn("No active shapes found for animation.");
+        return;
+    }
+
+    const maxLength = Math.max(...Object.values(shapeElementsMap).map(els => els.length));
+    let step = 0;
+
+    const intervalId = setInterval(() => {
+        if (step >= maxLength && mode === 'index-wise') {
+            clearInterval(intervalId);
+            return;
+        }
+
+        if (mode === 'index-wise') {
+            // For each shape type, trigger the shape at index 'step' if it exists
+            for (const className in shapeElementsMap) {
+                const el = shapeElementsMap[className][step];
+                if (el) {
+                    const event = new PointerEvent("pointermove", { bubbles: true });
+                    el.dispatchEvent(event);
+                }
+            }
+            step++;
+        } else if (mode === 'reverse') {
+            // Same as index-wise, but starting from the end
+            for (const className in shapeElementsMap) {
+                const elements = shapeElementsMap[className];
+                const el = elements[elements.length - 1 - step];
+                if (el) {
+                    const event = new PointerEvent("pointermove", { bubbles: true });
+                    el.dispatchEvent(event);
+                }
+            }
+            step++;
+            if (step >= maxLength) clearInterval(intervalId);
+        } else if (mode === 'shape-wise') {
+            const classNames = Object.keys(shapeElementsMap);
+            if (step >= classNames.length) {
+                clearInterval(intervalId);
+                return;
+            }
+            const currentClass = classNames[step];
+            shapeElementsMap[currentClass].forEach(el => {
+                const event = new PointerEvent("pointermove", { bubbles: true });
+                el.dispatchEvent(event);
+            });
+            step++;
+        }
+    }, interval);
+};
 
 // V. Initialization and Global Exposure
 function initializeApp() {
@@ -690,7 +757,41 @@ function initializeApp() {
      const infoButton = document.querySelector('button#infoButtonId'); // Assuming button has id="infoButtonId"
      if (infoButton) infoButton.addEventListener('click', UIController.toggleInfoBox);
   */
-}
+ // Trigger only squares and circles:
+    // UIController.animateHoverSequence({
+    // mode: 'index-wise',
+    // shapeClasses: ['square', 'circle'],
+    // interval: 100
+    // });
+    // Trigger hover animation index-wise across all shapes
+    //UIController.animateHoverSequence({ mode: 'index-wise', interval: time });
 
+    // Trigger hover animation for one shape type at a time
+    //UIController.animateHoverSequence({ mode: 'shape-wise', interval: 500 });
+        const time = 60;
+
+    setTimeout(() => {
+        UIController.animateHoverSequence({ mode: 'index-wise', interval: time });
+
+    }, 300);
+    setTimeout(() => {
+        UIController.animateHoverSequence({ mode: 'reverse', interval: time });
+
+    }, 200);
+    setTimeout(() => {
+        UIController.animateHoverSequence({ mode: 'reverse', interval: time+50 });
+
+    }, 500);
+    // Trigger hover animation in reverse order
+
+}
+function triggerAnimationOnCShape(){
+    const time = 50;
+    UIController.animateHoverSequence({ mode: 'reverse', interval: time });
+    //UIController.animateHoverSequence({ mode: 'index-wise', interval: time });
+    //UIController.animateHoverSequence({ mode: 'shape-wise', interval: 500 });
+
+}
+window.triggerAnimationOnCShape = triggerAnimationOnCShape;
 // Main execution entry point
 document.addEventListener("DOMContentLoaded", initializeApp);

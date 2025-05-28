@@ -361,6 +361,12 @@ const projects = [
     image: "assets/Images/eng.png",
     description: "Observe the energy produced through Newtonian particle movement.",
     link: "/EnergyExplorer/index.html"
+  },
+   {
+    title: "GeoSpace",
+    image: "assets/Images/Kandinsky-492.jpg",
+    description: "Create AI life that consumes the universe...",
+    link: "/GeoSpace/index.html"
   }
   
   

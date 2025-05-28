@@ -5,15 +5,17 @@
     font-family: 'Kosugi Maru','Scheherazade','Kumbh Sans','Courier Prime','Alata', sans-serif !important;
   }
   #infoBar{
-    background-color: rgb(26, 26, 26);
+    background-color: none;
     color: rgb(255, 255, 255);
     /* border-top: 5px solid black; */
-    border-bottom: 3px solid rgb(0, 255, 55);
+    /* border-bottom: 3px solid rgb(0, 255, 55); */
     /* text-decoration: underline; */
     font-size: 25px;
-    padding: 10px;
+    /* padding: 10px; */
     /* padding-top: 10px; */
     text-align: center;
+    height: 0px;
+    /* display: none; */
     /* font-size: x-large; */
   }
   body{
@@ -23,6 +25,8 @@
     overflow: hidden;
   }
   #button-exit{
+             bottom: 15px;
+
     background-color: black;
     position:absolute; 
     left: 20px;
@@ -33,12 +37,11 @@
   }
   #configParticle {
     position: absolute; 
-    top: 10%; 
     right: 20px;               /* Start at the horizontal center */
     /* transform: translateX(-50%); Move it back by half its width */
     background: rgba(184, 184, 184, 0.8);
     border: 3px solid  rgb(233, 255, 182);
-     padding: 20px; 
+    padding: 20px; 
     border-radius: 5px; 
     z-index: 100;
     display:none;
@@ -46,31 +49,15 @@
     /* Optional, for smooth scrolling: */
     scroll-behavior: smooth;
     max-height:80%;
-    max-width: 400px;
+    max-width: 300px;
     transition: opacity 0.2s ease;
-    color:white;
 
-  }
-  #cameraLockStatus{display: none;}
-  /* Small screens: full width */
-  @media (max-width: 699px) {
-    #configParticle {
-      transform: translateX(0%); /* Move it back by half its width */
-      padding: 5px; 
-      margin: 5px;
-      left: 10px;
-      right: 10px;
-      margin: 0 auto;
-      /* width: 100%; */
-      /* max-width: 100%; */
-      border-radius: 0;
-    }
   }
   #configParticleSettings{
     position: absolute;
-    right: 20px;
+    /* right: 20px; */
     margin-top: 20px;
-    max-width: 300px;
+    max-width: 1000px;
   }
   #button-config{
     color: white;
@@ -78,6 +65,8 @@
     position:absolute; 
      right: 30px;
      padding: 5px;
+         bottom: 15px;
+
      border: 3px dashed rgb(255, 255, 255);
      height: auto;
      transition: .2s;
