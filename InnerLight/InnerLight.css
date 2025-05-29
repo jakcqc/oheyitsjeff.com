@@ -65,6 +65,7 @@ svg {
   border-top: 5px double white;
   border-bottom: 5px double white;
   transition: .3s;
+ 
 }
 .settings{
     
@@ -133,6 +134,7 @@ svg {
 #controls select,
 #controls button {
     grid-column: span 1; /* Each input/select/button takes one column */
+    
 }
 #controls button {
   grid-column: span 5; /* Each input/select/button takes one column */
@@ -145,15 +147,31 @@ svg {
   height: 55px;
 
 }
-#clickMe{
+.clickMe{
   border-color:rgb(198, 138, 253);
 box-shadow: 1px 1px 5px rgb(220, 190, 255);
   border-radius: 20px;
   position: absolute;
-  bottom: 20px;
-  left:20px;
+  
 }
-#clickMe:hover{
+
+#clickMeLeft{
+bottom: 30px;
+  left:25px;
+}
+#clickMeRight{
+bottom: 30px;
+  right:25px;
+    border-color:rgb(39, 133, 255);
+    box-shadow: 1px 1px 5px rgb(68, 147, 250);
+
+}
+.clickMe:hover{
+  box-shadow: 1px 1px 10px rgb(0, 0, 0);
+    border-color:rgb(138, 253, 147);
+
+}
+#clickMeRight:hover{
   box-shadow: 1px 1px 10px rgb(0, 0, 0);
     border-color:rgb(138, 253, 147);
 

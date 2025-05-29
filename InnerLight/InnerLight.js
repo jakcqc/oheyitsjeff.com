@@ -68,19 +68,24 @@ const ShapeDefaults = {
       centerY: () => AppState.height / 2,
   },
   prism: {
-      zGridUnit: 90,
+      zGridUnit: 40,
       count: function() {
           const x_cells = Math.floor(AppState.width / this.zGridUnit);
           const y_cells = Math.floor(AppState.height / this.zGridUnit);
-          return Math.max(10, x_cells * y_cells); // Ensure some are drawn, even on small screens
+          return Math.max(15, x_cells * y_cells); // Ensure some are drawn, even on small screens
       },
-      baseStrokeWidth: "0.5vh",
-      hoverStrokeWidths: ["0.3vh", "10px", "20px"],
-      fillOpacity: 0.45,
+      baseStrokeWidth: "0.3vh",
+      hoverStrokeWidths: ["5px", "4px", "1px"],
+      fillOpacity: 0.7,
+      strokeColor: 'white',
+      initialStrokeColor:"goldenrod",
+      incrementFill:[true,0.3,0.5],
       className: "prism",
       initialRadius: 10, // Initial radius for the sequence of circles
       radiusIncrementPerGroup: 25, // How much radius increases periodically
       hueIncrement: 2.0,
+      minRadius:5,
+      transitionDuration: 250
   },
   user: { // Default config for user-defined shapes
       shapeType: 'circle',
@@ -147,6 +152,85 @@ const SvgUtils = {
       }
   }
 };
+function distance(x1, y1, x2, y2) {
+    return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
+}
+
+// Test if a new circle overlaps any existing
+function isOverlapping(circles, x, y, r, padding = 0) {
+    return circles.some(c =>
+        distance(x, y, c.x, c.y) < (r + c.r + padding)
+    );
+}
+
+function packCircles(config, svg, AppState) {
+    const numCircles = typeof config.count === 'function' ? config.count() : config.count;
+    const centerX = AppState.width / 2;
+    const centerY = AppState.height / 2;
+    const minRadius = config.minRadius || 15;
+    const maxRadius = config.maxRadius || 60;
+    const circles = [];
+
+    // 1. Start from the center
+    let r = Math.random() * (maxRadius - minRadius) + minRadius;
+    circles.push({ x: centerX, y: centerY, r });
+
+    // 2. Place bubbles tangent to previous ones
+    for (let i = 1; i < numCircles; i++) {
+        let found = false, tries = 0;
+        while (!found && tries < 1200) {
+            tries++;
+            // Randomly pick a parent bubble to attach to
+            const parent = circles[Math.floor(Math.random() * circles.length)];
+            const angle = Math.random() * 2 * Math.PI;
+            const newR = Math.random() * (maxRadius - minRadius) + minRadius;
+            // Compute new circle tangent to parent
+            const x = parent.x + (parent.r + newR + 1) * Math.cos(angle);
+            const y = parent.y + (parent.r + newR + 1) * Math.sin(angle);
+
+            // Check for screen bounds
+            if (
+                x - newR < 0 || x + newR > AppState.width ||
+                y - newR < 0 || y + newR > AppState.height
+            ) continue;
+
+            // Overlap check
+            if (!isOverlapping(circles, x, y, newR, 1)) {
+                circles.push({ x, y, r: newR });
+                found = true;
+            }
+        }
+        // Optionally break if we can't place more
+        if (!found) break;
+    }
+
+    // 3. Fill remaining spaces (bubble maximization)
+    let attempts = 0;
+    while (circles.length < numCircles && attempts < 4000) {
+        attempts++;
+        // Random point in bounds
+        const x = Math.random() * AppState.width;
+        const y = Math.random() * AppState.height;
+
+        // Find maximum possible radius at this point without overlapping
+        let maxR = maxRadius;
+        for (const c of circles) {
+            const d = distance(x, y, c.x, c.y) - c.r - 1;
+            if (d < maxR) maxR = d;
+        }
+        // Also respect screen edge
+        maxR = Math.min(
+            maxR,
+            x, AppState.width - x,
+            y, AppState.height - y
+        );
+        if (maxR >= minRadius && !isOverlapping(circles, x, y, maxR, 1)) {
+            circles.push({ x, y, r: maxR });
+        }
+    }
+
+    return circles;
+}
 
 // III. Shape Drawing Engine
 const ShapeDrawer = {
@@ -165,14 +249,14 @@ const ShapeDrawer = {
     if (!AppState.shouldMoveShapes) return;
     // Skip if already animating
     if (this.dataset.animating === "true") return;
-
+    if(!this.parentNode) return;
     this.dataset.animating = "true";
 
     this.parentNode.appendChild(this);
     const element = d3.select(this);
     // element.raise(); // Bring to front if desired
 
-    const defaults = {
+    let defaults = {
         baseStrokeWidth: '1px',
         initialStrokeColor: 'white',
         hoverStrokeWidths: ['3px'],
@@ -180,10 +264,12 @@ const ShapeDrawer = {
         fillOpacity: 0.2,
         hueIncrement: 2.0,
         elementHue: undefined,
+        incrementFill:[false,0.5,0.7],
         // finalStrokeColor is no longer used since we won't revert
         transitionDuration: 300
     };
-    const config = { ...defaults, ...handlerConfig };
+    let config = { ...defaults, ...handlerConfig };
+    
 
     let currentHueForShape = ShapeDrawer._hueState.globalHue;
     if (typeof config.elementHue !== 'undefined') {
@@ -192,17 +278,29 @@ const ShapeDrawer = {
         ShapeDrawer._hueState.globalHue = (ShapeDrawer._hueState.globalHue + config.hueIncrement) % 360;
         currentHueForShape = ShapeDrawer._hueState.globalHue;
     }
-    const cycledHueColor = d3.hsl(currentHueForShape, 0.5, 0.7).toString();
+    const cycledHueColor = d3.hsl(currentHueForShape, config.incrementFill[1], config.incrementFill[2]).toString();
 
     element.style("stroke", config.initialStrokeColor)
            .style("stroke-width", config.baseStrokeWidth)
            .style("fill-opacity", config.fillOpacity);
-
+    
     let transition = element.transition().duration(config.transitionDuration);
 
     config.hoverStrokeWidths.forEach((width, index) => {
         const strokeForThisStep = config.hoverStrokeColors[index] || cycledHueColor;
-        transition = transition
+        if(config.incrementFill[0])
+        {
+                transition = transition     
+            .style("stroke-width", width)
+            .style("stroke", strokeForThisStep)
+            .attr("fill", strokeForThisStep)
+            .transition()
+            .duration(config.transitionDuration)
+            .on("end", function() {
+            this.dataset.animating = "false";
+        });
+        }else{
+             transition = transition
             .style("stroke-width", width)
             .style("stroke", strokeForThisStep)
             .transition()
@@ -210,6 +308,8 @@ const ShapeDrawer = {
             .on("end", function() {
             this.dataset.animating = "false";
         });
+        }
+
     });
 
     // Removed the final revert to original color so the last hover state remains
@@ -386,50 +486,23 @@ const ShapeDrawer = {
   },
 
   createPrism: (svg, config) => {
-      const numElements = typeof config.count === 'function' ? config.count() : config.count;
-      // These state variables reset each time createPrism is called, maintaining original behavior
-      let centerFinderH_state = 3, centerFinderW_state = 3, sizer_state = 3;
-      let currentRadius_state = config.initialRadius;
+      const circles = packCircles(config, svg, AppState);
 
-      svg.selectAll(`.${config.className}`)
-          .data(d3.range(numElements))
-          .enter().append("circle")
-          .attr("class", config.className)
-          .attr("cx", () => { // Not dependent on `i`, so all circles get one of 3 X positions
-              let locFactor;
-              if (centerFinderW_state % 3 === 0) locFactor = 1.98;
-              else if (centerFinderW_state % 3 === 1) locFactor = 2.02;
-              else locFactor = 2;
-              centerFinderW_state++;
-              return AppState.width / locFactor;
-          })
-          .attr("cy", () => { // Not dependent on `i`, so all circles get one of 3 Y positions
-              let locFactor;
-              if (centerFinderH_state % 3 === 0) locFactor = 2.09;
-              else if (centerFinderH_state % 3 === 1) locFactor = 2.09;
-              else locFactor = 1.99;
-              centerFinderH_state++;
-              return AppState.height / locFactor;
-          })
-          .attr("r", () => { // Radius increases in steps based on sizer_state
-              if (sizer_state % 3 === 0) currentRadius_state += config.radiusIncrementPerGroup;
-              sizer_state++;
-              return currentRadius_state;
-          })
-          .attr("fill", "none")
-          .attr("stroke", "black") // Initial stroke is black for prism
-          .attr("stroke-width", config.baseStrokeWidth)
-          .on("pointermove", function(event, d) {
-               ShapeDrawer.commonMouseoverHandler.call(this, event, d, {
-                  baseStrokeWidth: config.baseStrokeWidth,
-                  initialStrokeColor: "black", // Prism starts black
-                  hoverStrokeWidths: config.hoverStrokeWidths, // ["0.3vh", "10px", "20px"]
-                  // hoverStrokeColors will use cycledHueColor by default from commonMouseoverHandler
-                  fillOpacity: config.fillOpacity,
-                  hueIncrement: config.hueIncrement,
-                  finalStrokeColor: "black" // Prism returns to black
-              });
-          });
+        svg.selectAll(`.${config.className}`).remove();
+
+        svg.selectAll(`.${config.className}`)
+            .data(circles)
+            .enter().append("circle")
+            .attr("class", config.className)
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", d => d.r)
+            .attr("fill", "none")
+            .attr("stroke", config.strokeColor)
+            .attr("stroke-width", config.baseStrokeWidth)
+            .on("pointermove", function(event, d) {
+                ShapeDrawer.commonMouseoverHandler.call(this, event, d, config);
+            });
   },
 
   createCustomShape: (svg, userConfig) => {
@@ -520,7 +593,7 @@ const UIController = {
   updateButtonActiveState: (buttonIndex, isActive) => {
       const buttons = document.getElementsByTagName('button');
       if (buttons[buttonIndex]) { // buttonIndex is 0-based for the button array from HTML
-          buttons[buttonIndex+1].classList.toggle('button-active', isActive);
+          buttons[buttonIndex].classList.toggle('button-active', isActive);
       }
   },
 
@@ -643,7 +716,7 @@ const UIController = {
   },
 
   updateUserShapeVisualization: () => {
-      const userShapeFlagIndex = 5; // 'user' is at index 5 in _shapeKeyMap and shouldCreateFlags
+      const userShapeFlagIndex = 4; // 'user' is at index 5 in _shapeKeyMap and shouldCreateFlags
       if (AppState.shouldCreateFlags[userShapeFlagIndex]) {
           // If already active, remove and re-add with new config
           SvgUtils.removeShapesByClass(ShapeDefaults.user.className);
@@ -677,6 +750,8 @@ UIController.animateHoverSequence = function(options = {}) {
     let step = 0;
 
     const intervalId = setInterval(() => {
+            const maxLength = Math.max(...Object.values(shapeElementsMap).map(els => els.length));
+
         if (step >= maxLength && mode === 'index-wise') {
             clearInterval(intervalId);
             return;
@@ -787,7 +862,18 @@ function initializeApp() {
 }
 function triggerAnimationOnCShape(){
     const time = 50;
+    //UIController.animateHoverSequence({ mode: 'reverse', interval: time });
+    UIController.animateHoverSequence({ mode: 'index-wise', interval: time });
+
+    //UIController.animateHoverSequence({ mode: 'index-wise', interval: time });
+    //UIController.animateHoverSequence({ mode: 'shape-wise', interval: 500 });
+
+}
+function triggerAnimationOnCShapeReverse(){
+    const time = 50;
     UIController.animateHoverSequence({ mode: 'reverse', interval: time });
+    //UIController.animateHoverSequence({ mode: 'index-wise', interval: time });
+
     //UIController.animateHoverSequence({ mode: 'index-wise', interval: time });
     //UIController.animateHoverSequence({ mode: 'shape-wise', interval: 500 });
 

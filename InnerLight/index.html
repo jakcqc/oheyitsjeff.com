@@ -23,16 +23,20 @@
   <div id = "background">
     <div id = "innerLightNav">
       <button id = "button-exit" onclick ="goTo('../')" >X</button>
-      <button id = "clickMe" onclick ="triggerAnimationOnCShape()"  >< ! ></button>
+      
       <button onclick ="changePattern(0,'circle')"  >o</button>
-      <button onclick ="changePattern(1,'prism')"  >ooo</button>
+      <button onclick ="changePattern(1,'prism')"  > [ ]</button>
       <button onclick ="changePattern(2,'rect')"  >/ | \</button>
-      <button onclick ="changePattern(3,'square')"  >[ ]</button>
+      <button onclick ="changePattern(3,'square')"  >o0o</button>
       <button onclick ="changePattern(4,'user')"  > ' _ '</button>
+
       <button id = "info" onclick ="information()"  >i</button>
+      
     </div>
-    
-    <div id = "info-box" onclick = "closeInfoBox()">
+    <button class = "clickMe" id = "clickMeLeft" onclick ="triggerAnimationOnCShape()"  >< ! ></button>
+    <button class = "clickMe" id = "clickMeRight" onclick ="triggerAnimationOnCShapeReverse()"  >^ ^ ^</button>
+
+    <div id = "info-box" >
       <h2>Shape Configuration</h2>
       <div id="controls">
         
@@ -77,6 +81,8 @@
         <input type="number" id="incrementSpace" value="10">
 
         <button onclick="updateShapeIns()">Update Shape</button>
+
+
     </div>
       <!-- <div id = "close">
           x

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as AR from './actionRules.js'
 import * as randomSim from './randomPS.js'
+console.log(Module)
 const mutateChance = 0.2;
 const destroyChance = 0.21;
 
