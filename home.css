@@ -101,7 +101,7 @@ body{
     /* border-top: 4px double var(--color-accent);
     border-bottom: 4px double var(--color-accent); */
 
-    height: 190px;
+    height: 180px;
     width: 99%;
     object-fit: cover;
     z-index: 2;
@@ -144,7 +144,7 @@ body{
     cursor: pointer;
     border-style: solid;
   }
-  .balebName{
+  .mainName{
     margin: 5px;
     border: 3px solid var(--color-accent);
     box-shadow: -10px 0px 0px #FF9FF5;
@@ -194,7 +194,6 @@ body{
     box-shadow: 3px 3px var(--color-accent);
   
   }
-  
   .styleInfo{
     /* display: none; */
     color: var(--color-accent);
@@ -233,14 +232,28 @@ body{
       max-width: 350px;
     }
     .thumb{
-      height: 13=50px;
+      height: 150px;
     }
     .apps{
-      height: 420px;
+      height: 320px;
     }
     #pinkBack{
       background: var(--color-main);
     }
   }
+  .bubble-title {
+    pointer-events: none;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: bold;
+    /* text-shadow: 0 1px 5px #fff, 0 1px 1px #eee; */
+  }
+  
+  .desc {
+    pointer-events: none;
+    color: #222;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  
   
   

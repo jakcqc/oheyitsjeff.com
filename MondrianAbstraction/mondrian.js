@@ -23,7 +23,9 @@ function createAbstraction(){
 
     let svg = d3.select("#vis").append("svg")
         .attr("width", Math.ceil(w/10)*10)
-        .attr("height", Math.ceil(h/10)*10);
+        .attr("height", Math.ceil(h/10)*10)
+        .attr("touch-action", "none") // prevent browser scrolling during touch
+  .style("-webkit-tap-highlight-color", "transparent");
        
     function calculateSquareSize(h,w){
         return(Math.sqrt(w*h/860));
@@ -43,42 +45,42 @@ function createAbstraction(){
         .on("pointermove", toucher);
 
     
-    const rectsAll = document.getElementsByTagName('rect');
-    for(let i = 0;i<rectsAll.length;i++){
-      // rectsAll[i].ontouchmove = moveTouch
-      rectsAll[i]
-        .addEventListener("ontouchmove", function(event){
+  //   const rectsAll = document.getElementsByTagName('rect');
+  //   for(let i = 0;i<rectsAll.length;i++){
+  //     // rectsAll[i].ontouchmove = moveTouch
+  //     rectsAll[i]
+  //       .addEventListener("touchmove", function(event){
         
-  console.log("moving");
-  //this.parentNode.appendChild(this);
-    d3.select(this)
-        .transition()
-          .duration(600)
-          .attr("x", "0")
-          .attr("y", "0")
-            .attr("transform", "translate("+width*.5+","+height*.5+")scale(1)rotate(180)")
-            .style("fill-opacity",  .1)
-            .style("stroke","black")
-            .style("stroke-width"," .1px")
-        .transition()
-          .delay(1200)
-          .attr("x","0")
-          .attr("y","0")
-          .attr("transform", "translate(" + (Math.floor(Math.random()*(width-(2*z)))+0)+ "," + (Math.floor(Math.random()*(height-(2*z)))+0) + ")scale("+(Math.floor(Math.random()*2.6) + 1)+")")
-          .style("stroke-width"," .09vh")
-          .style("stroke", "black")
-          .style("fill-opacity", .45)
-          .style("fill", function(i) {
-            if(hue != 360){
-              hue++; 
-            }else{
-              hue = 0;
-            }
-            return d3.hsl(hue, 1,.60); 
+  // console.log("moving");
+  // //this.parentNode.appendChild(this);
+  //   d3.select(this)
+  //       .transition()
+  //         .duration(600)
+  //         .attr("x", "0")
+  //         .attr("y", "0")
+  //           .attr("transform", "translate("+width*.5+","+height*.5+")scale(1)rotate(180)")
+  //           .style("fill-opacity",  .1)
+  //           .style("stroke","black")
+  //           .style("stroke-width"," .1px")
+  //       .transition()
+  //         .delay(1200)
+  //         .attr("x","0")
+  //         .attr("y","0")
+  //         .attr("transform", "translate(" + (Math.floor(Math.random()*(width-(2*z)))+0)+ "," + (Math.floor(Math.random()*(height-(2*z)))+0) + ")scale("+(Math.floor(Math.random()*2.6) + 1)+")")
+  //         .style("stroke-width"," .09vh")
+  //         .style("stroke", "black")
+  //         .style("fill-opacity", .45)
+  //         .style("fill", function(i) {
+  //           if(hue != 360){
+  //             hue++; 
+  //           }else{
+  //             hue = 0;
+  //           }
+  //           return d3.hsl(hue, 1,.60); 
             
-            })
-    });
-  }
+  //           })
+  //   });
+  // }
     function translateX(i){
             return Math.floor((i % x) * z)
     }
@@ -89,7 +91,7 @@ function createAbstraction(){
       return "translate("+(i % x) * z+","+Math.floor(i / x) * z+")";
     }
     function toucher(i) {
-      console.log("mouse");
+      console.log("touching");
       this.parentNode.appendChild(this);
       d3.select(this)
         .transition()

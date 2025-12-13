@@ -5,13 +5,17 @@ body{
 }
 #button-exit{
   position:absolute; 
-  left: 2px;
+  left: 20px;
    border: 4px double white;
 }
 #button-exit:hover, #info:hover{
   border-radius: 10px;
   border-style: solid;
 }
+svg {
+  touch-action: none;
+}
+
 #background{
     background-color: black ;
   }
@@ -28,6 +32,8 @@ body{
     border: 3px solid black;
 
 }
+
+
 .button:checked{
   border: 3px solid #fdfdfd;
   color: rgb(255, 235, 235);
@@ -39,7 +45,6 @@ body{
     border-radius: 5px;
     border-bottom: 3px solid white;
     border-top: 3px solid white;
-
     color: rgb(255, 235, 235);
 }
 }
@@ -49,7 +54,7 @@ body{
 }
 #info{
   position: absolute;
-  right: 2px;
+  right: 20px;
   border: 4px double white;
   font-weight: bold;
 }
@@ -60,6 +65,7 @@ body{
   border-top: 5px double white;
   border-bottom: 5px double white;
   transition: .3s;
+ 
 }
 .settings{
     
@@ -79,12 +85,13 @@ body{
     border-style: dashed;
   }
   #info-box{
-    position: fixed;
-    top: 30%;
+    position: absolute;
+    top: 80px;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%);
     border: 5px double white;
     border-radius: 10px;
+    max-width: 350px;
     padding: 10px;
     background: black;
     color: white;
@@ -127,6 +134,7 @@ body{
 #controls select,
 #controls button {
     grid-column: span 1; /* Each input/select/button takes one column */
+    
 }
 #controls button {
   grid-column: span 5; /* Each input/select/button takes one column */
@@ -138,4 +146,44 @@ body{
   padding: 2px;
   height: 55px;
 
+}
+.clickMe{
+  border-color:rgb(198, 138, 253);
+box-shadow: 1px 1px 5px rgb(220, 190, 255);
+  border-radius: 20px;
+  position: absolute;
+  
+}
+
+#clickMeLeft{
+bottom: 30px;
+  left:25px;
+}
+#clickMeRight{
+bottom: 30px;
+  right:25px;
+    border-color:rgb(39, 133, 255);
+    box-shadow: 1px 1px 5px rgb(68, 147, 250);
+
+}
+.clickMe:hover{
+  box-shadow: 1px 1px 10px rgb(0, 0, 0);
+    border-color:rgb(138, 253, 147);
+
+}
+#clickMeRight:hover{
+  box-shadow: 1px 1px 10px rgb(0, 0, 0);
+    border-color:rgb(138, 253, 147);
+
+}
+@media only screen and (max-width: 440px) {
+  button {
+    font-size: 12px; /* Adjust this size as needed */
+    padding: 1px;
+    margin: 1px;
+  }
+  #button-exit{
+    left: 10px;
+  }
+  #info{right: 10px;}
 }
