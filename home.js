@@ -5,115 +5,7 @@ let textRadius = 28;
 let svg;
 let initStrength = 0.02;
 let dragSimStrength = 0.09;
-const N = 18; // number of stars
-const starSize = 26; // side of the star
-const starRadius = starSize / 2;
-const starCornerRadius = starSize / 2;
-// Helper to make a "star" path as described
-function getStarPath(x, y, size, r) {
-  return [
-    // start at top, inset by r
-    `M${x + r},${y}`,
-    // straight line to right inset
-    `L${x + size - r},${y}`,
-    // concave arc into top-right
-    `A${r},${r} 0 0 0 ${x + size},${y + r}`,
-    // down to bottom-right inset
-    `L${x + size},${y + size - r}`,
-    // concave arc into bottom-right
-    `A${r},${r} 0 0 0 ${x + size - r},${y + size}`,
-    // left to bottom-left inset
-    `L${x + r},${y + size}`,
-    // concave arc into bottom-left
-    `A${r},${r} 0 0 0 ${x},${y + size - r}`,
-    // up to top-left inset
-    `L${x},${y + r}`,
-    // concave arc into top-left
-    `A${r},${r} 0 0 0 ${x + r},${y}`,
-    // close
-    `Z`
-  ].join(" ");
-}
 
-
-// Pick random corners: 0=TL, 1=TR, 2=BL, 3=BR
-function pickCorner() {
-  return Math.floor(Math.random()*4);
-}
-
-function randomNearCorner(corner, width, height, margin=50) {
-  let x, y;
-  const xSpread = width * 0.2;
-  const ySpread = height * 0.2;
-  switch(corner) {
-    case 0: // Top Left
-      x = margin + Math.random() * xSpread;
-      y = margin + Math.random() * ySpread;
-      break;
-    case 1: // Top Right
-      x = width - margin - Math.random() * xSpread - starSize;
-      y = margin + Math.random() * ySpread;
-      break;
-    case 2: // Bottom Left
-      x = margin + Math.random() * xSpread;
-      y = height - margin - Math.random() * ySpread - starSize;
-      break;
-    case 3: // Bottom Right
-      x = width - margin - Math.random() * xSpread - starSize;
-      y = height - margin - Math.random() * ySpread - starSize;
-      break;
-  }
-  return {x, y};
-}
-function createStars(svg){
-  // Example: add to your createD3Bubbles (AFTER .append("svg") and BEFORE your nodes)
-const starData = Array.from({length:N}).map(() => {
-  const corner = pickCorner();
-  const {x, y} = randomNearCorner(corner, width, height, 20);
-  return {x, y, size: starSize, r: starCornerRadius};
-});
-
-const stars = svg.selectAll("g.star")
-  .data(starData)
-  .enter()
-  .append("g")
-  .attr("class", "star")
-
-// "Shadow" for each star: just offset path
-stars.append("path")
-  .attr("d", d => getStarPath(d.x+4, d.y+4, d.size, d.r))
-  .attr("fill", "rgba(80,80,130,0.12)")
-  .attr("stroke", "none")
-  .style("filter", "blur(2px)");
-
-// Main star shape
-stars.append("path")
-  .attr("d", d => getStarPath(d.x, d.y, d.size, d.r))
-  .attr("fill", "#fff")
-  .attr("stroke", "#dedcff")
-  .attr("stroke-width", 2)
-  .style("filter", "drop-shadow(0 2px 10px #eaeaff66)");
-
-// Interactivity for pointermove/touch
-// stars.on("pointermove", function(event, d) {
-//     d3.select(this).select("path:last-child")
-//       .attr("fill", "#ffe36e")  // yellow highlight
-//       .attr("stroke", "#dd9c27")
-//       .attr("stroke-width", 2.6)
-//       .transition()
-//       .duration(200)
-//       .attr("transform", `scale(1.25)`);
-//   })
-//   .on("pointerout", function(event, d) {
-//     d3.select(this).select("path:last-child")
-//       .attr("fill", "#fff")
-//       .attr("stroke", "#dedcff")
-//       .attr("stroke-width", 2)
-//       .transition()
-//       .duration(200)
-//       .attr("transform", null);
-//   });
-}
 function createD3Bubbles(svg) {
  
 
@@ -252,7 +144,7 @@ const forceY = d3.forceY(centerY)
 // you can tweak that multiplier to taste
 
 const simulation = d3.forceSimulation(nodes)
-  .force("collide", d3.forceCollide().radius(d => d.r + textRadius).iterations(12))
+  .force("collide", d3.forceCollide().radius(d => d.r + textRadius-3).iterations(3))
   .force("x", forceX)
   .force("y", forceY)
   .on("tick", ticked);
@@ -334,13 +226,13 @@ function gradientAnimation() {
 const projects = [
   {
     title: "Mondrian Abstraction 3D",
-    image: "assets/Images/mond4D.png",
+    image: "assets/Images/monder3D.jpg",
     description: "Ever wonder what A Mondrian Composition would like look like in 3D? How about 4D? 5...?",
     link: "/MondrianAbstractionV2/Viewer3D/"
   },
   {
     title: "Particle_Explorer",
-    image: "assets/Images/part.png",
+    image: "assets/Images/stars.jpg",
     description: "Watch Life emerge or fade...You decide, inspired by hunar4321.",
     link: "/ParticleExplorer/index.html"
   },
@@ -352,21 +244,33 @@ const projects = [
   },
   {
     title: "Mondrian Abstraction",
-    image: "assets/Images/MondrianAbstraction.png",
+    image: "assets/Images/monder.jpg",
     description: "A fun take on the popular Mondrian Composition.",
     link: "/MondrianAbstraction/"
   },
   {
     title: "Energy_Explorer",
-    image: "assets/Images/eng.png",
+    image: "assets/Images/eng.jpg",
     description: "Observe the energy produced through Newtonian particle movement.",
     link: "/EnergyExplorer/index.html"
   },
    {
     title: "GeoSpace",
-    image: "assets/Images/Kandinsky-492.jpg",
+    image: "assets/Images/geoLife.jpg",
     description: "Create AI life that consumes the universe...",
     link: "/GeoSpace/index.html"
+  },
+  {
+    title: "Discrete_Mandelbrot",
+    image: "assets/Images/InnerLight.png",
+    description: "discrete fractal yall",
+    link: "/Generic/index.html"
+  },
+  {
+    title: "GameOfLife??",
+    image: "assets/Images/gameOfLife0.webp",
+    description: "Create AI life that consumes the universe...",
+    link: "/GameOfLife_aug/index.html"
   }
   
   
@@ -390,30 +294,30 @@ const projects = [
   //   link: "/StreamLet/www/"
   // }
 ];
-function createProjectCards()
-{
-  const backgroundDiv = document.getElementById('background');
-  projects.forEach(project => {
-      const projectHTML = `
-          <div class="outter">
-              <div class="apps">
-                  <div class="card-header">${project.title}</div>
-                  <div class="card-content" onclick="goTo('${project.link}')">
-                      <img class="thumb" src="${project.image}" alt="${project.title}">
-                  </div>
-                  <div class="overlay">
-                      <div class="styleInfo"><span class="tab1"></span>${project.description}</div>
-                  </div>
-              </div>
-          </div>
-      `;
-      backgroundDiv.innerHTML += projectHTML;
-  });
-}
+// function createProjectCards()
+// {
+//   const backgroundDiv = document.getElementById('background');
+//   projects.forEach(project => {
+//       const projectHTML = `
+//           <div class="outter">
+//               <div class="apps">
+//                   <div class="card-header">${project.title}</div>
+//                   <div class="card-content" onclick="goTo('${project.link}')">
+//                       <img class="thumb" src="${project.image}" alt="${project.title}">
+//                   </div>
+//                   <div class="overlay">
+//                       <div class="styleInfo"><span class="tab1"></span>${project.description}</div>
+//                   </div>
+//               </div>
+//           </div>
+//       `;
+//       backgroundDiv.innerHTML += projectHTML;
+//   });
+// }
 document.addEventListener("DOMContentLoaded", function() {
   width = window.innerWidth;
   height = window.innerHeight - 68;
-  bubbleRadius = Math.min(window.innerWidth * 0.15, 70);
+  bubbleRadius = Math.min(window.innerWidth * 0.15, 50);
    // Clear previous svg if any
    d3.select("#d3-container").selectAll("*").remove();
 

@@ -33,7 +33,7 @@
   }
   #configParticle {
     position: absolute; 
-    top: 10%; 
+    top: 20px; 
     right: 20px;               /* Start at the horizontal center */
     /* transform: translateX(-50%); Move it back by half its width */
     background: rgba(184, 184, 184, 0.8);
