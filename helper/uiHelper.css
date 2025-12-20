@@ -129,6 +129,30 @@
   position: relative;
   z-index: 1;
 }
+.btn-inline {
+  display: inline-block;
+  width: auto;
+  margin: 2px;
+}
+.vr-row {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid rgba(201, 201, 201, 0.15); /* grayish line */
+}
+
+.vr-row:last-child {
+  border-bottom: none;
+}
+.vr-row:first-child {
+  margin-top: 5px;
+}
+.vr-input{
+  margin-top: 2px;
+}
+input[type="range"] {
+  width: 100%;
+  max-width: 200px;
+}
 
 /* Optional: content area under tabs */
 .vr-tabBody {
@@ -137,7 +161,9 @@
   padding-top: 4px;
   background: #1a1a1a;
 }
-
+.vr-tabBody button{
+  margin: 2px;
+}
     #button-info{
 
       position:absolute; 

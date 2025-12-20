@@ -3,6 +3,93 @@
 // - registering visuals in a record
 // - describing editable params (with optional min/max/step + cssClass)
 // - auto-building a UI to edit them
+import { ensureTransformState,initTransformRuntime,buildTransformPanel} from "../helper/transformHelp.js";
+import {buildPropOpsPanel,applyPropOpsToSubtree} from "../helper/svgEditor.js"
+export function exportStateToJSON(state) {
+  return JSON.stringify(state, null, 2);
+}
+
+export function importStateFromJSON(json, state) {
+  const parsed = JSON.parse(json);
+  mergeInto(state, parsed);
+}
+
+function mergeInto(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
+      if (
+        !target[key] ||
+        typeof target[key] !== "object" ||
+        Array.isArray(target[key])
+      ) {
+        target[key] = {};
+      }
+      mergeInto(target[key], value);
+    } else {
+      // primitives + arrays replace directly
+      target[key] = value;
+    }
+  }
+}
+
+export function makeSaveSettingsButton(state, visualId) {
+  const btn = document.createElement("button");
+  btn.textContent = "Save Settings";
+  btn.type = "button";
+  btn.classList.add("btn-inline");
+
+  btn.onclick = () => {
+    const blob = new Blob(
+      [exportStateToJSON(state)],
+      { type: "application/json" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${visualId}.settings.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return btn;
+}
+export function makeLoadSettingsButton(state, onChange) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.style.display = "none";
+
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    importStateFromJSON(text, state);
+    onChange?.(); // force rerender + UI sync
+  };
+
+  const btn = document.createElement("button");
+  btn.textContent = "Load Settings";
+  btn.type = "button";
+  btn.classList.add("btn-inline");
+
+  btn.onclick = () => input.click();
+  
+  return el("", {}, [btn, input]);
+}
+function isUserTyping() {
+  const el = document.activeElement;
+  return el && (
+    el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    el.tagName === "SELECT"
+  );
+}
 
 export function mountUserTabs({
   container,
@@ -94,6 +181,16 @@ export function makeDefaultState(spec) {
   for (const p of spec.params || []) setByPath(state, p.key, clone(p.default));
   // attach arbitrary spec.data under a stable place if you want:
   if (spec.data !== undefined) state.__data = spec.data;
+    // --- transforms state (UI + stack) ---
+  state.__xf = {
+    ui: {
+      splitCount: 1,     // 2 => side-by-side, 4 => 2x2 grid, etc
+      activeTile: "0",   // select stores strings
+      rotateDeg: 90,
+    },
+    stack: [],           // [{ kind, ...payload }]
+  };
+
   return state;
 }
 
@@ -103,6 +200,8 @@ export function mountAutoUI({
   spec,
   state,
   onChange,
+  mountEl,
+  xfRuntime
 }){
   container.innerHTML = "";
 
@@ -126,18 +225,24 @@ const paramsPanel = () => {
   return el;
 };
 
-mountUserTabs({
-  container,
-  spec,
-  state,
-  onChange,
-  buildParamsPanel: paramsPanel,
-  extraTabs: {
-    //transforms: buildTransformPanel,
-    // animation: buildAnimationPanel,
-    // export: buildExportPanel,
-  },
-});
+  mountUserTabs({
+    container,
+    spec,
+    state,
+    onChange,
+    buildParamsPanel: paramsPanel,
+    extraTabs: {
+      transforms: () => buildTransformPanel({ mountEl, state, xfRuntime }),
+     propOps: () =>
+      buildPropOpsPanel({
+        mountEl,
+        state,
+        xfRuntime
+            }),
+
+    },
+
+  });
 
   return { state, rerenderUI: () => mountAutoUI({ container, spec, state, onChange }) };
 }
@@ -148,46 +253,101 @@ export function runVisualApp({
   mountEl,
   uiEl,
   state: providedState,
-}){
+}) {
   const spec = VISUALS[visualId];
   if (!spec) throw new Error(`Unknown visualId "${visualId}"`);
 
   const state = providedState || makeDefaultState(spec);
 
-  // Create instance
   let instance = spec.create({ mountEl }, state);
 
-  // Auto UI
-  mountAutoUI({
-    container: uiEl,
+  ensureTransformState(state);
+  const xfRuntime = initTransformRuntime({ mountEl, state });
+
+  mountVisualUI({
+    uiEl,
     spec,
     state,
-    onChange: () => {
-      // if the visual exposes render, call it; otherwise no-op
-      if (instance && typeof instance.render === "function") instance.render();
-    },
+    mountEl,
+    xfRuntime,
+    instance,
+    visualId,
   });
-  document.getElementById("button-info").onclick = () => {
-  document.getElementById("config").classList.toggle("open");
-};
 
-  makeSaveSVG(uiEl,mountEl,visualId);
+  document.getElementById("button-info").onclick = () => {
+    document.getElementById("config").classList.toggle("open");
+  };
+
   return {
     spec,
     state,
     instance,
     setVisual(nextId) {
-      if (instance && typeof instance.destroy === "function") instance.destroy();
+      instance?.destroy?.();
       uiEl.innerHTML = "";
       mountEl.innerHTML = "";
       return runVisualApp({ visualId: nextId, mountEl, uiEl });
-    }
+    },
   };
 }
 
-/* --------------------------- UI building --------------------------- */
 
-function buildControl({ param, state, onChange }) {
+/* --------------------------- UI building --------------------------- */
+export function mountVisualUI({
+  uiEl,
+  spec,
+  state,
+  mountEl,
+  xfRuntime,
+  instance,
+  visualId,
+}) {
+  uiEl.innerHTML = "";
+
+  const autoUiEl = el("div", { className: "vr-autoUI" });
+  const ioEl = el("div", { className: "vr-settingsIO" });
+
+  uiEl.append(autoUiEl, ioEl);
+
+  const rerender = () => {
+  instance?.render?.();
+  xfRuntime?.rebuildNow?.();
+  const svg = mountEl.firstElementChild;
+  if (svg) {
+    applyPropOpsToSubtree(svg, state.__propOps?.stack);
+  }
+};
+
+
+  const rebuildAutoUI = () => {
+    mountAutoUI({
+      container: autoUiEl,
+      spec,
+      state,
+      mountEl,
+      xfRuntime,
+      onChange: rerender,
+    });
+  };
+
+  // initial mount
+  rebuildAutoUI();
+
+  // persistent controls
+  ioEl.append(
+    makeSaveSettingsButton(state, visualId),
+    makeLoadSettingsButton(state, () => {
+      rerender();
+      rebuildAutoUI();
+    })
+  );
+
+  makeSaveSVG(ioEl, mountEl, visualId);
+
+  return { rebuildAutoUI };
+}
+
+export function buildControl({ param, state, onChange }) {
   const labelText = param.label ?? param.key;
 
   const wrap = el("div", { className: ["vr-row", param.cssClass].filter(Boolean).join(" ") });
@@ -249,7 +409,7 @@ function buildControl({ param, state, onChange }) {
       };
 
       slider.addEventListener("input", () => sync(parseFloat(slider.value)));
-      box.addEventListener("input", () => sync(parseFloat(box.value)));
+      box.addEventListener("blur", () => sync(parseFloat(box.value)));
 
       row.appendChild(slider);
       row.appendChild(box);
@@ -257,7 +417,7 @@ function buildControl({ param, state, onChange }) {
     } else {
       input = el("input", { type: "number", step: String(param.step ?? 1) });
       input.value = String(value ?? param.default ?? 0);
-      input.addEventListener("input", () => {
+      input.addEventListener("blur", () => {
         setByPath(state, param.key, parseFloat(input.value));
         onChange?.(param.key, getByPath(state, param.key), state);
       });
@@ -267,7 +427,7 @@ function buildControl({ param, state, onChange }) {
     // text
     input = el("input", { type: "text" });
     input.value = String(value ?? param.default ?? "");
-    input.addEventListener("input", () => {
+    input.addEventListener("blur", () => {
       setByPath(state, param.key, input.value);
       onChange?.(param.key, getByPath(state, param.key), state);
     });
@@ -284,11 +444,13 @@ function buildControl({ param, state, onChange }) {
 
   return wrap;
 }
-function makeSaveSVG(uiEl,mountEl,visualId){
+export function makeSaveSVG(uiEl,mountEl,visualId){
   const saveBtn = document.createElement("button");
   saveBtn.textContent = "Save SVG";
   saveBtn.type = "button";
   saveBtn.style.marginTop = "5px";
+  saveBtn.classList.add("btn-inline");
+
   saveBtn.onclick = () => {
     const svg = mountEl.firstElementChild;
     if (!(svg instanceof SVGSVGElement)) return;
@@ -317,20 +479,39 @@ function makeSaveSVG(uiEl,mountEl,visualId){
   };
   uiEl.appendChild(saveBtn);
 }
-function el(tag, props = {}, children = []) {
+// export function el(tag, props = {}, children = []) {
+//   const node = document.createElement(tag);
+//   for (const [k, v] of Object.entries(props)) {
+//     if (k === "className") node.className = v;
+//     else if (k === "textContent") node.textContent = v;
+//     else node.setAttribute(k, String(v));
+//   }
+//   for (const c of children) node.appendChild(c);
+//   return node;
+// }
+export function el(tag, props = {}, children = []) {
+  // no tag → just return children
+  if (!tag) {
+    const frag = document.createDocumentFragment();
+    for (const c of children) frag.appendChild(c);
+    return frag;
+  }
+
   const node = document.createElement(tag);
+
   for (const [k, v] of Object.entries(props)) {
     if (k === "className") node.className = v;
     else if (k === "textContent") node.textContent = v;
     else node.setAttribute(k, String(v));
   }
+
   for (const c of children) node.appendChild(c);
   return node;
 }
 
 /* --------------------------- path helpers --------------------------- */
 
-function getByPath(obj, path) {
+export function getByPath(obj, path) {
   const parts = String(path).split(".");
   let cur = obj;
   for (const p of parts) {
@@ -340,7 +521,7 @@ function getByPath(obj, path) {
   return cur;
 }
 
-function setByPath(obj, path, value) {
+export function setByPath(obj, path, value) {
   const parts = String(path).split(".");
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {

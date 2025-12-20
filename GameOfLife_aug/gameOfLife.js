@@ -43,7 +43,7 @@ registerVisual("gameOfLifeSVG", {
     min: 0,
     max: 1,
     step: 0.01,
-    description: "Initial probability that a cell starts alive when the grid is randomized."
+    description: "Initial probability that a cell starts alive when the grid is randomized. Alt/option + click to trigger."
   },
 
   {
@@ -254,8 +254,6 @@ registerVisual("gameOfLifeSVG", {
         .attr("height", state.cellPx)
         .attr("stroke", state.strokeColor)
         .attr("shape-rendering", "crispEdges");
-
-      randomize();
       draw();
     }
 
@@ -336,6 +334,10 @@ registerVisual("gameOfLifeSVG", {
     }
 
     function loop(now) {
+      if (!state.running) {
+        rafId = null;
+        return;
+      }
       rafId = requestAnimationFrame(loop);
       if (!state.running) return;
 
@@ -350,12 +352,12 @@ registerVisual("gameOfLifeSVG", {
     function stopLoop() {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = null;
-      lastTick = 0;
+      //lastTick = 0;
     }
 
     function startLoop() {
       if (rafId) return;
-      lastTick = 0;
+      //lastTick = 0;
       rafId = requestAnimationFrame(loop);
     }
 
@@ -419,7 +421,9 @@ registerVisual("gameOfLifeSVG", {
         prev.mode !== state.mode ||
         prev.strokeColor !== state.strokeColor;
 
-      if (needsRebuild || !alive) rebuildGrid();
+
+      //if (needsRebuild || !alive) rebuildGrid();
+      if (needsRebuild) rebuildGrid();
 
       // If user changes paintColor while paused, keep dead-cell “default” color aligned.
       if (prev.paintColor !== state.paintColor && state.mode !== "color") {
@@ -435,6 +439,7 @@ registerVisual("gameOfLifeSVG", {
         wrapEdges: state.wrapEdges,
         mode: state.mode,
         paintColor: state.paintColor,
+        strokeColor:state.strokeColor
       };
     }
 

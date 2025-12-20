@@ -8,7 +8,9 @@ let dragSimStrength = 0.09;
 
 function createD3Bubbles(svg) {
  
-
+    // after you’ve set width, height, initStrength, dragSimStrength
+const centerX = width  / 2;
+const centerY = (height - height*0.2) / 2;
   // Patterns for image fill
   svg.append("defs")
     .selectAll("pattern")
@@ -25,7 +27,18 @@ function createD3Bubbles(svg) {
     .attr("width", bubbleRadius * 2)
     .attr("height", bubbleRadius * 2)
     .attr("x", 0)
-    .attr("y", 0);
+    .attr("y", 0)
+    .style("opacity", 0)
+  .each(function () {
+    const img = this;
+    img.onload = () => {
+      d3.select(img)
+        .transition()
+        .duration(420)
+        .ease(d3.easeCubicOut)
+        .style("opacity", 1);
+    };
+  });
 
   // Initial data
   nodes = projects.map((d, i) => ({
@@ -34,15 +47,30 @@ function createD3Bubbles(svg) {
     x: Math.random() * (width - bubbleRadius * 2) + bubbleRadius,
     y: Math.random() * (height - bubbleRadius * 2) + bubbleRadius
   }));
-  
+
+const forceX = d3.forceX(centerX)
+  .strength(d => isOutX(d) ? 0 : initStrength);
+
+const forceY = d3.forceY(centerY)
+  .strength(d => isOutX(d) ? dragSimStrength * 4 : initStrength);
+ const simulation = d3.forceSimulation(nodes)
+  .force("collide", d3.forceCollide().radius(d => d.r + textRadius - 3))
+  .force("x", forceX)
+  .force("y", forceY)
+  .alpha(0)
+  .on("tick", ticked)
+  .stop(); 
 // now add drag behavior to your bubbles:
 const dragBehavior = d3.drag()
 .on("start", (event, d) => {
   // if the simulation is “sleeping,” wake it up
-  if (!event.active) simulation.alphaTarget(0.3).restart();
+  // if (!event.active) simulation.alphaTarget(0.3).restart();
   // fix the node’s position to the pointer
   d.fx = d.x;
+
   d.fy = d.y;
+    runSimulationBurst(3000, 0.8,simulation);
+
 })
 .on("drag", (event, d) => {
   // move the fixed position with the pointer
@@ -119,6 +147,7 @@ const dragBehavior = d3.drag()
     });
     function ticked() {
   node.attr("transform", d => {
+    
     // clamp inside
     d.x = Math.max(d.r+textRadius-10, Math.min(width  - d.r-textRadius+10, d.x));
     d.y = Math.max(d.r+textRadius-10, Math.min(height - d.r-textRadius+10, d.y));
@@ -126,67 +155,43 @@ const dragBehavior = d3.drag()
   });
 }
     
-    // after you’ve set width, height, initStrength, dragSimStrength
-const centerX = width  / 2;
-const centerY = (height - height*0.2) / 2;
+
 
 // a little helper to know when a node is off-screen (horizontally)
 function isOutX(d) {
   return d.x < d.r || d.x > width - d.r;
 }
 
-const forceX = d3.forceX(centerX)
-  .strength(d => isOutX(d) ? 0 : initStrength);
-
-const forceY = d3.forceY(centerY)
-  .strength(d => isOutX(d) ? dragSimStrength * 4 : initStrength);
 // note: I multiplied dragSimStrength by 4 here to make the vertical “slide” more pronounced
 // you can tweak that multiplier to taste
 
-const simulation = d3.forceSimulation(nodes)
-  .force("collide", d3.forceCollide().radius(d => d.r + textRadius-3).iterations(3))
-  .force("x", forceX)
-  .force("y", forceY)
-  .on("tick", ticked);
-
-
-  // Title
-  // node.append("text")
-  //   .attr("class", "bubble-title")
-  //   .attr("y", d => d.r + textRadius)
-  //   .attr("text-anchor", "middle")
-  //   .attr("fill", "#333")
-  //   .style("font-size", "1.1rem")
-  //   .text(d => d.title);
-
-  // Description overlay (hidden by default)
-  // node.append("circle")
-  //   .attr("class", "desc-fo")
-  //   .attr("x", d => -d.r)
-  //   .attr("y", d => -d.r)
-  //   .attr("width", d => d.r * 2)
-  //   .attr("height", d => d.r * 2)
-  //   //.style("pointer-events", "none")
-  //   //.style("display", "block")
-  //   //.append("xhtml:div")
-  //   .attr("class", "desc")
-  //   .style("width", "100%")
-  //   .style("height", "100%")
-  //   .style("display", "flex")
-  //   .style("align-items", "center")
-  //   .style("justify-content", "center")
-  //   .style("background", "rgba(255, 255, 255, 0.78)")
-  //   .style("border-radius", "50%")
-  //   .style("padding", "20px")
-  //   .style("font-size", "1rem")
-  //   .style("text-align", "center")
-  //   .html(d => d.description);
-
+// const simulation = d3.forceSimulation(nodes)
+//   .force("collide", d3.forceCollide().radius(d => d.r + textRadius-3).iterations(1))
+//   .force("x", forceX)
+//   .force("y", forceY)
+//   .alpha(0.4)
+//   .on("tick", ticked);
+  
 
   // On click, go to the link
   node.on("click", function(event, d) {
     window.location.href = d.link;
   });
+  
+  return simulation;
+}
+
+
+function runSimulationBurst(duration = 4000, alpha = 0.6, simulation) {
+  simulation
+    .alpha(alpha)
+    .alphaTarget(0)
+    .restart();
+
+  clearTimeout(simulation._burstTimer);
+  simulation._burstTimer = setTimeout(() => {
+    simulation.stop();
+  }, duration);
 }
 
 // Returns an SVG arc string, center at (cx, cy), radius, from startAngle to endAngle (in degrees)
@@ -272,61 +277,54 @@ const projects = [
     description: "Create AI life that consumes the universe...",
     link: "/GameOfLife_aug/index.html"
   }
-  
-  
-  // {
-  //   title: "GeoNameSpace",
-  //   image: "assets/Images/idleGame.png",
-  //   description: "What are Cubes?",
-  //   link: "/GeoSpaceV2/shapes/shapeTesting.html"
-  // },
-  
-  // {
-  //   title: "Cube",
-  //   image: "assets/Images/truchetTiles.PNG",
-  //   description: "A challenging game where players try to outsmart the machine.",
-  //   link: "/cubeGame/"
-  // },
-  // {
-  //   title: "StreamLet",
-  //   image: "assets/Images/blobs.PNG",
-  //   description: "An Ionic/Angular app for a streaming service that consolidates other services into one platform.",
-  //   link: "/StreamLet/www/"
-  // }
+
 ];
-// function createProjectCards()
-// {
-//   const backgroundDiv = document.getElementById('background');
-//   projects.forEach(project => {
-//       const projectHTML = `
-//           <div class="outter">
-//               <div class="apps">
-//                   <div class="card-header">${project.title}</div>
-//                   <div class="card-content" onclick="goTo('${project.link}')">
-//                       <img class="thumb" src="${project.image}" alt="${project.title}">
-//                   </div>
-//                   <div class="overlay">
-//                       <div class="styleInfo"><span class="tab1"></span>${project.description}</div>
-//                   </div>
-//               </div>
-//           </div>
-//       `;
-//       backgroundDiv.innerHTML += projectHTML;
-//   });
-// }
-document.addEventListener("DOMContentLoaded", function() {
-  width = window.innerWidth;
-  height = window.innerHeight - 68;
-  bubbleRadius = Math.min(window.innerWidth * 0.15, 50);
-   // Clear previous svg if any
-   d3.select("#d3-container").selectAll("*").remove();
+// document.addEventListener("DOMContentLoaded", function() {
+//   width = window.innerWidth;
+//   height = window.innerHeight - 68;
+//   bubbleRadius= 50;
+//   bubbleRadius = Math.min(window.innerWidth * 0.15, 50);
+//    // Clear previous svg if any
+//    d3.select("#d3-container").selectAll("*").remove();
 
-   const svg = d3.select("#d3-container")
-     .append("svg")
-     .attr("width", width)
-     .attr("height", height);
-  //createProjectCards();
-  //createStars(svg);
-  createD3Bubbles(svg);
+//    const svg = d3.select("#d3-container")
+//      .append("svg")
+//      .attr("width", width)
+//      .attr("height", height);
+//   //createProjectCards();
+//   //createStars(svg);
+//   const simulation = createD3Bubbles(svg);
+//   runSimulationBurst(2000,undefined,simulation);
 
+
+// });
+function initOnceStable() {
+  // lock dimensions AFTER browser settles
+  width = Math.round(window.innerWidth);
+  height = Math.round(window.innerHeight - 68);
+  bubbleRadius = Math.min(width * 0.15, 50);
+
+  d3.select("#d3-container").selectAll("*").remove();
+
+  const svg = d3.select("#d3-container")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const simulation = createD3Bubbles(svg);
+
+  // start simulation AFTER layout is stable
+  runSimulationBurst(2000, undefined, simulation);
+}
+
+// wait for EVERYTHING that causes reflow
+Promise.all([
+  new Promise(r => window.addEventListener("load", r)),
+  document.fonts.ready
+]).then(() => {
+  initOnceStable();
+  // double RAF ensures viewport + scrollbar + GPU settle
+  // requestAnimationFrame(() => {
+  //   requestAnimationFrame(initOnceStable);
+  // });
 });
