@@ -1,26 +1,155 @@
 // mandel_visual.js
 import { registerVisual } from "../helper/visualHelp.js";
+// (x, y, maxIter, state) -> iteration count
+
 
 registerVisual("mandelTilingZoomable", {
   title: "Mandel Tiling (Zoomable)",
   description: "Adaptive tiled Mandelbrot renderer with animated zoom.",
 
   params: [
-    { key: "maxIterBase", type: "number", default: 200, min: 50, max: 2000, step: 10 },
-    { key: "minCellPx",   type: "number", default: 8,   min: 1,  max: 64, step: 1 },
-    { key: "startCellPx", type: "number", default: 200, min: 50, max: 600, step: 10 },
-    { key: "showBoundaryPixels", type: "boolean", default: true },
+    {
+      type: "button",
+      key: "resetView",
+      label: "Reset View",
+      onClick: ({ state, setByPath }) => {
+        setByPath(state, "view.centerRe", -0.5);
+        setByPath(state, "view.centerIm", 0);
+        setByPath(state, "view.spanRe", 2.5);
+      }
+    },
+    {
+      key: "fractal",
+      type: "select",
+      default: "mandelbrot",
+      options: [
+        "mandelbrot",
+        "julia",
+        "burningShip",
+        "tricorn",
+        "multibrot"
+      ],
+      description: "Which fractal formula to use for iteration."
+    },
+    {
+      key: "maxIterBase",
+      type: "number",
+      default: 50,
+      min: 10,
+      max: 5000,
+      step: 10,
+      description: "Base iteration count; higher values reveal more detail but cost performance."
+    },
+    {
+      key: "minCellPx",
+      type: "number",
+      default: 6,
+      min: 1,
+      max: 64,
+      step: 1,
+      description: "Smallest subdivision size in pixels before stopping recursion."
+    },
+    {
+      key: "startCellPx",
+      type: "number",
+      default: 180,
+      min: 32,
+      max: 800,
+      step: 10,
+      description: "Initial tiling cell size used for adaptive subdivision."
+    },
+    {
+      key: "showBoundaryPixels",
+      type: "boolean",
+      default: true,
+      description: "Render boundary cells at minimum resolution for detail near edges."
+    },
 
-    { key: "shapeType", type: "select", default: "circle",
-      options: ["square", "circle", "ngon"] },
+    {
+      key: "shapeType",
+      type: "select",
+      default: "circle",
+      options: ["square", "circle", "ngon"],
+      description: "Geometric primitive used to render each fractal cell."
+    },
 
-    { key: "nSides", type: "number", default: 6, min: 3, max: 12, step: 1 },
-    { key: "maxCircles", type: "number", default: 2000, min: 20, max: 100000, step: 100 },
+    {
+      key: "nSides",
+      type: "number",
+      default: 6,
+      min: 3,
+      max: 12,
+      step: 1,
+      description: "Number of sides for ngon rendering mode."
+    },
+    {
+      key: "maxCircles",
+      type: "number",
+      default: 40000,
+      min: 100,
+      max: 200000,
+      step: 200,
+      description: "Maximum number of shapes rendered per frame."
+    },
 
-    { key: "view.centerRe", type: "number", default: -0.5, step: 0.001 },
-    { key: "view.centerIm", type: "number", default: 0.0,  step: 0.001 },
-    { key: "view.spanRe",   type: "number", default: 2.5,  step: 0.001 },
+    {
+      key: "view.centerRe",
+      type: "number",
+      default: -0.5,
+      min: -3,
+      max: 3,
+      step: 0.001,
+      description: "Real component of the viewport center."
+    },
+    {
+      key: "view.centerIm",
+      type: "number",
+      default: 0.0,
+      min: -3,
+      max: 3,
+      step: 0.001,
+      description: "Imaginary component of the viewport center."
+    },
+    {
+      key: "view.spanRe",
+      type: "number",
+      default: 2.5,
+      min: 0.00001,
+      max: 6,
+      step: 0.001,
+      description: "Width of the complex-plane view in the real axis."
+    },
+
+    {
+      key: "julia.Re",
+      type: "number",
+      default: -0.8,
+      min: -1.5,
+      max: 1.5,
+      step: 0.001,
+      description: "Real component of constant c used in the Julia set."
+    },
+    {
+      key: "julia.Im",
+      type: "number",
+      default: 0.156,
+      min: -1.5,
+      max: 1.5,
+      step: 0.001,
+      description: "Imaginary component of constant c used in the Julia set."
+    },
+
+    {
+      key: "multibrot.Power",
+      type: "number",
+      default: 3,
+      min: 2,
+      max: 8,
+      step: 0.25,
+      description: "Exponent used in the Multibrot iteration (power > 2)."
+    },
   ],
+
 
   create({ mountEl }, state) {
     const width = window.innerWidth;
@@ -35,7 +164,84 @@ registerVisual("mandelTilingZoomable", {
 
     const g = svg.append("g");
     const color = d3.scaleSequential(d3.interpolateTurbo);
+    const FRACTAL_ITERS = Object.create(null);
+    FRACTAL_ITERS.mandelbrot = function (cr, ci, maxIter, state) {
+      let zr = 0, zi = 0;
+      for (let i = 0; i < maxIter; i++) {
+        const zr2 = zr * zr - zi * zi + cr;
+        zi = 2 * zr * zi + ci;
+        zr = zr2;
+        if (zr * zr + zi * zi > 4) return i;
+      }
+      return maxIter;
+    };
+     function mandelbrotIter(cr, ci, maxIter) {
+      let zr = 0, zi = 0;
+      const esc2 = escapeR * escapeR;
+      for (let i = 0; i < maxIter; i++) {
+        const zr2 = zr * zr - zi * zi + cr;
+        zi = 2 * zr * zi + ci;
+        zr = zr2;
+        if (zr * zr + zi * zi > esc2) return i;
+      }
+      return maxIter;
+    }
+  FRACTAL_ITERS.julia = function (zr, zi, maxIter, state) {
+    const cr = state.julia.Re;
+    const ci = state.julia.Im;
 
+    for (let i = 0; i < maxIter; i++) {
+      const zr2 = zr * zr - zi * zi + cr;
+      zi = 2 * zr * zi + ci;
+      zr = zr2;
+      if (zr * zr + zi * zi > 4) return i;
+    }
+    return maxIter;
+  };
+  FRACTAL_ITERS.burningShip = function (cr, ci, maxIter, state) {
+    let zr = 0, zi = 0;
+    for (let i = 0; i < maxIter; i++) {
+      const azr = Math.abs(zr);
+      const azi = Math.abs(zi);
+      const zr2 = azr * azr - azi * azi + cr;
+      zi = 2 * azr * azi + ci;
+      zr = zr2;
+      if (zr * zr + zi * zi > 4) return i;
+    }
+    return maxIter;
+  };
+  FRACTAL_ITERS.tricorn = function (cr, ci, maxIter, state) {
+    let zr = 0, zi = 0;
+    for (let i = 0; i < maxIter; i++) {
+      const zr2 = zr * zr - zi * zi + cr;
+      zi = -2 * zr * zi + ci;
+      zr = zr2;
+      if (zr * zr + zi * zi > 4) return i;
+    }
+    return maxIter;
+  };
+  FRACTAL_ITERS.multibrot = function (cr, ci, maxIter, state) {
+    let zr = 0, zi = 0;
+    const p = state.multibrot.Power || 3;
+
+    for (let i = 0; i < maxIter; i++) {
+      let r = Math.hypot(zr, zi);
+      let a = Math.atan2(zi, zr);
+      r = Math.pow(r, p);
+      a *= p;
+
+      zr = r * Math.cos(a) + cr;
+      zi = r * Math.sin(a) + ci;
+
+      if (zr * zr + zi * zi > 4) return i;
+    }
+    return maxIter;
+  };
+  let activeIter = FRACTAL_ITERS[state.fractal];
+
+  // function setFractal(name) {
+  //   activeIter = FRACTAL_ITERS[name] || FRACTAL_ITERS.mandelbrot;
+  // }
     function boundsFromView() {
       const { centerRe, centerIm, spanRe } = state.view;
       const reMin = centerRe - spanRe / 2;
@@ -57,17 +263,7 @@ registerVisual("mandelTilingZoomable", {
       ];
     }
 
-    function mandelbrotIter(cr, ci, maxIter) {
-      let zr = 0, zi = 0;
-      const esc2 = escapeR * escapeR;
-      for (let i = 0; i < maxIter; i++) {
-        const zr2 = zr * zr - zi * zi + cr;
-        zi = 2 * zr * zi + ci;
-        zr = zr2;
-        if (zr * zr + zi * zi > esc2) return i;
-      }
-      return maxIter;
-    }
+   
 
     function classifyCell(x, y, s, maxIter) {
       const pts = [
@@ -78,7 +274,8 @@ registerVisual("mandelTilingZoomable", {
       let inside = 0, maxEsc = 0;
       for (const [px, py] of pts) {
         const [cr, ci] = pxToComplex(px, py);
-        const it = mandelbrotIter(cr, ci, maxIter);
+        //const it = mandelbrotIter(cr, ci, maxIter);
+        const it = activeIter(cr, ci, maxIter, state);
         if (it === maxIter) inside++;
         maxEsc = Math.max(maxEsc, it);
       }
@@ -123,6 +320,7 @@ registerVisual("mandelTilingZoomable", {
 
     function render({ fast = false } = {}) {
       g.selectAll("*").remove();
+    activeIter = FRACTAL_ITERS[state.fractal];
 
       const zoomLevel = 2.5 / state.view.spanRe;
       const maxIter = Math.round(

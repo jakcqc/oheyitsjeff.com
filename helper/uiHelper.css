@@ -1,6 +1,6 @@
-    #background{
+    /* #background{
       background-color: white;
-    }
+    } */
     * {
       font-family: 'Kosugi Maru','Scheherazade','Kumbh Sans','Courier Prime','Alata', sans-serif !important;
     }
@@ -8,7 +8,20 @@
       pointer-events: all;
       touch-action: none;
     }
-    
+    .innerLight{
+          background-color: black ;
+
+    }
+    .llm-model{
+      margin: 5px;
+    }
+    .llm-output{
+      max-width: 100%;
+      overflow: scroll;
+      height: auto;
+      background-color: #2a2a2a;
+      padding:5px;
+    }
     #infoBar{
       padding-top:10px ;
       padding-bottom:15px ;
@@ -38,25 +51,28 @@
   }
     #config {
     position: absolute; 
-    top: 20px; 
-    right: 20px;               /* Start at the horizontal center */
+    /* top: 20px;  */
+    /* right: 20px;               Start at the horizontal center */
     /* transform: translateX(-50%); Move it back by half its width */
     background: rgba(39, 39, 39, 0.8);
     border: 3px solid  rgb(233, 255, 182);
-     padding: 20px; 
+     padding: 10px; 
     border-radius: 5px; 
     z-index: 100;
     /* FIX */
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
-
+resize: horizontal;
   transition: opacity 0.2s ease;
     overflow-y: auto;       /* Only vertical scroll shows if needed */
     /* Optional, for smooth scrolling: */
     scroll-behavior: smooth;
     max-height:80%;
-    max-width: 400px;
+    width: 400px;
+    max-width: 800px;
+    /* min-width: 383px; */
+
     color:white;
 
   }
@@ -98,7 +114,7 @@
   border: 1px solid #444;
   background: #1e1e1e;
   color: #bbb;
-  padding: 4px 10px;
+  padding: 4px 5px;
   font-size: 12px;
   cursor: pointer;
   border-radius: 4px 4px 0 0;
@@ -161,6 +177,44 @@ input[type="range"] {
   padding-top: 4px;
   background: #1a1a1a;
 }
+#innerLightNav{
+  display: block;
+  text-align: center;
+  padding: 5px;
+  border-top: 5px double white;
+  border-bottom: 5px double white;
+  transition: .3s;
+ 
+}
+.clickMe{
+  border-color:rgb(198, 138, 253);
+box-shadow: 1px 1px 5px rgb(220, 190, 255);
+  border-radius: 20px;
+  position: absolute;
+  
+}
+
+#clickMeLeft{
+bottom: 30px;
+  left:25px;
+}
+#clickMeRight{
+bottom: 30px;
+  right:25px;
+    border-color:rgb(39, 133, 255);
+    box-shadow: 1px 1px 5px rgb(68, 147, 250);
+
+}
+.clickMe:hover{
+  box-shadow: 1px 1px 10px rgb(0, 0, 0);
+    border-color:rgb(138, 253, 147);
+
+}
+#clickMeRight:hover{
+  box-shadow: 1px 1px 10px rgb(0, 0, 0);
+    border-color:rgb(138, 253, 147);
+
+}
 .vr-tabBody button{
   margin: 2px;
 }
@@ -176,4 +230,19 @@ input[type="range"] {
     button:hover{
       border-radius: 10px;
     }
-  
+  @media only screen and (min-width: 700px) {
+  #config{
+    right:5px;
+  }
+}
+@media (max-width: 400px) {
+  #config{
+    width: 350px;
+  }
+  .vr-tabs{
+    gap:0px;
+  }
+  #config.open{
+    width: 350px;
+  }
+}

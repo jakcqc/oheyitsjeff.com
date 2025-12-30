@@ -1,5 +1,6 @@
 /* --------------------------- Property Ops tab --------------------------- */
 import { getByPath, setByPath } from "./visualHelp.js"; // you already use setByPath in transforms :contentReference[oaicite:1]{index=1}
+import { registerTab } from "./visualHelp.js";
 
 export function ensurePropOpsState(state) {
   if (!state.__propOps || typeof state.__propOps !== "object") state.__propOps = {};
@@ -18,6 +19,44 @@ export function ensurePropOpsState(state) {
 
 function isHexColor(s) {
   return typeof s === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s.trim());
+}
+function clamp255(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  return Math.max(0, Math.min(255, Math.round(x)));
+}
+function parseRgbFunc(s) {
+  if (typeof s !== "string") return null;
+  const m = s.trim().match(/^rgba?\(\s*([^)]+)\s*\)$/i);
+  if (!m) return null;
+
+  const parts = m[1].split(",").map(x => x.trim());
+  if (parts.length < 3) return null;
+
+  const r = clamp255(parts[0]);
+  const g = clamp255(parts[1]);
+  const b = clamp255(parts[2]);
+  if (r == null || g == null || b == null) return null;
+
+  return [r, g, b];
+}
+function hexToRgb(s) {
+  if (!isHexColor(s)) return null;
+  let h = s.trim().slice(1);
+  if (h.length === 3) h = h.split("").map(ch => ch + ch).join("");
+  const int = parseInt(h.slice(0, 6), 16);
+  if (!Number.isFinite(int)) return null;
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return [r, g, b];
+}
+function isRgbVector(v) {
+  return (
+    Array.isArray(v) &&
+    v.length === 3 &&
+    v.every(x => typeof x === "number" && Number.isFinite(x))
+  );
 }
 function hexToInt(s) {
   let h = s.trim().slice(1);
@@ -59,12 +98,15 @@ function coerceComparable(v) {
   if (typeof v === "number") return v;
   if (typeof v === "string") {
     const s = v.trim();
+    const rgb = parseRgbFunc(s) || hexToRgb(s);
+    if (rgb) return rgb;
     if (isHexColor(s)) return hexToInt(s);
     // numeric-ish
     const n = Number(s);
     if (Number.isFinite(n) && s !== "") return n;
     return s;
   }
+  if (isRgbVector(v)) return v;
   return v;
 }
 
@@ -80,6 +122,16 @@ function matchesCond(el, attrKey, cond) {
 
   // range / min-max
   if (cond && typeof cond === "object") {
+    // explicit exact (supports rgb vectors or strings like "rgb(1,2,3)")
+    if ("eq" in cond) {
+      const a = coerceComparable(raw);
+      const b = coerceComparable(cond.eq);
+      if (isRgbVector(a) && isRgbVector(b)) {
+        return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+      }
+      return a === b;
+    }
+
     const r = Array.isArray(cond.range) ? cond.range : null;
     const min = r ? r[0] : cond.min;
     const max = r ? r[1] : cond.max;
@@ -90,6 +142,29 @@ function matchesCond(el, attrKey, cond) {
     const a = min == null ? null : coerceComparable(min);
     const b = max == null ? null : coerceComparable(max);
 
+    // Vector3/rgb range: compare per-channel.
+    // Accepted formats:
+    // - { range: [[rMin,gMin,bMin], [rMax,gMax,bMax]] }
+    // - { min: [rMin,gMin,bMin], max: [rMax,gMax,bMax] }
+    // - { range: [[r,g,b]] } (singular => exact match)
+    if (isRgbVector(v) && (isRgbVector(a) || isRgbVector(b))) {
+      const minVec = isRgbVector(a) ? a : null;
+      const maxVec = isRgbVector(b) ? b : null;
+
+      if (minVec && maxVec) {
+        return (
+          v[0] >= minVec[0] && v[0] <= maxVec[0] &&
+          v[1] >= minVec[1] && v[1] <= maxVec[1] &&
+          v[2] >= minVec[2] && v[2] <= maxVec[2]
+        );
+      }
+
+      // If only one side is provided (rare), treat it as exact.
+      const only = minVec || maxVec;
+      return !!only && v[0] === only[0] && v[1] === only[1] && v[2] === only[2];
+    }
+
+    // Scalar range
     if (typeof v !== "number") return false;
     if (a != null && typeof a === "number" && v < a) return false;
     if (b != null && typeof b === "number" && v > b) return false;
@@ -97,7 +172,12 @@ function matchesCond(el, attrKey, cond) {
   }
 
   // exact
-  return coerceComparable(raw) === coerceComparable(cond);
+  const left = coerceComparable(raw);
+  const right = coerceComparable(cond);
+  if (isRgbVector(left) && isRgbVector(right)) {
+    return left[0] === right[0] && left[1] === right[1] && left[2] === right[2];
+  }
+  return left === right;
 }
 
 function selectorMatches(el, selectorObj) {
@@ -305,4 +385,9 @@ if (svg) {
 
   render();
   return root;
+}
+export function registerPropOpsTab() {
+  registerTab("propOps", ({ mountEl, state, xfRuntime }) =>
+    buildPropOpsPanel({ mountEl, state, xfRuntime })
+  );
 }

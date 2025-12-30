@@ -5,7 +5,14 @@ let textRadius = 28;
 let svg;
 let initStrength = 0.02;
 let dragSimStrength = 0.09;
-
+let needsSingleBubbleMode = false;
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 function createD3Bubbles(svg) {
  
     // after you’ve set width, height, initStrength, dragSimStrength
@@ -69,7 +76,9 @@ const dragBehavior = d3.drag()
   d.fx = d.x;
 
   d.fy = d.y;
+  if(!needsSingleBubbleMode){
     runSimulationBurst(3000, 0.8,simulation);
+  }
 
 })
 .on("drag", (event, d) => {
@@ -157,6 +166,7 @@ const dragBehavior = d3.drag()
     
 
 
+
 // a little helper to know when a node is off-screen (horizontally)
 function isOutX(d) {
   return d.x < d.r || d.x > width - d.r;
@@ -228,57 +238,63 @@ function gradientAnimation() {
   }, 400);
   console.log(blurb);
 }
-const projects = [
+const projects = shuffle([
   {
     title: "Mondrian Abstraction 3D",
     image: "assets/Images/monder3D.jpg",
-    description: "Ever wonder what A Mondrian Composition would like look like in 3D? How about 4D? 5...?",
+    description: "Ever wonder what A Mondrian Composition would like look like in 3D?",
     link: "/MondrianAbstractionV2/Viewer3D/"
   },
   {
     title: "Particle_Explorer",
     image: "assets/Images/stars.jpg",
-    description: "Watch Life emerge or fade...You decide, inspired by hunar4321.",
+    description: "Watch Life emerge or fade using particle interactions.",
     link: "/ParticleExplorer/index.html"
   },
   {
     title: "InnerLight",
     image: "assets/Images/idleGame.png",
-    description: "Small shape-based visualizations that use color changes and spatial differences.",
+    description: "Small shape-based visualizations that use color changes and spatial differences. Have fun...",
     link: "/InnerLight/"
   },
   {
     title: "Mondrian Abstraction",
     image: "assets/Images/monder.jpg",
-    description: "A fun take on the popular Mondrian Composition.",
+    description: "A fun take on the popular Mondrian Compositions, a play on light and overlaps.",
     link: "/MondrianAbstraction/"
   },
   {
     title: "Energy_Explorer",
     image: "assets/Images/eng.jpg",
-    description: "Observe the energy produced through Newtonian particle movement.",
+    description: "Voxel space energy representations, with continuous particles under the hood.",
     link: "/EnergyExplorer/index.html"
   },
    {
     title: "GeoSpace",
     image: "assets/Images/geoLife.jpg",
-    description: "Create AI life that consumes the universe...",
+    description: "A fully randomized partical sim with various indepedent particle groups...",
     link: "/GeoSpace/index.html"
   },
   {
-    title: "Discrete_Mandelbrot",
+    title: "Discrete_Fractals",
     image: "assets/Images/InnerLight.png",
-    description: "discrete fractal yall",
+    description: "Discrete fractals like the Mandelbrot, Julia, multibrot, etc are plotted using different shapes and convergence.",
     link: "/Generic/index.html"
   },
   {
     title: "GameOfLife??",
     image: "assets/Images/gameOfLife0.webp",
-    description: "Create AI life that consumes the universe...",
+    description: "The game of life is a cellular automata simulation. Different dense neighbourhood functions are used in this case.",
     link: "/GameOfLife_aug/index.html"
+  },
+  {
+    title: "Kakeya!!",
+    image: "assets/Images/kakaya.png",
+    description: "The collatz conjecture about sequences leverages Kakaya sets, which are sets made form line segments!",
+    link: "/kakeya/index.html"
   }
 
-];
+]);
 // document.addEventListener("DOMContentLoaded", function() {
 //   width = window.innerWidth;
 //   height = window.innerHeight - 68;
@@ -304,17 +320,42 @@ function initOnceStable() {
   height = Math.round(window.innerHeight - 68);
   bubbleRadius = Math.min(width * 0.15, 50);
 
-  d3.select("#d3-container").selectAll("*").remove();
+ 
+needsSingleBubbleMode = width < 600;
+
+
+if (needsSingleBubbleMode) {
+  const backgroundDiv = document.getElementById('background');
+  projects.forEach(project => {
+      const projectHTML = `
+          <div class="outter">
+              <div class="apps">
+                  <div class="card-header">${project.title}</div>
+                  <div class="card-content" onclick="goTo('${project.link}')">
+                      <img class="thumb" src="${project.image}" alt="${project.title}">
+                  </div>
+                  <div class="overlay">
+                      <div class="styleInfo"><span class="tab1"></span>${project.description}</div>
+                  </div>
+              </div>
+          </div>
+      `;
+      backgroundDiv.innerHTML += projectHTML;
+  });
+} else {
+   d3.select("#d3-container").selectAll("*").remove();
 
   const svg = d3.select("#d3-container")
     .append("svg")
     .attr("width", width)
     .attr("height", height);
-
   const simulation = createD3Bubbles(svg);
+  runSimulationBurst(2000, undefined, simulation);
+}
+
+  //const simulation = createD3Bubbles(svg);
 
   // start simulation AFTER layout is stable
-  runSimulationBurst(2000, undefined, simulation);
 }
 
 // wait for EVERYTHING that causes reflow
@@ -322,6 +363,7 @@ Promise.all([
   new Promise(r => window.addEventListener("load", r)),
   document.fonts.ready
 ]).then(() => {
+  
   initOnceStable();
   // double RAF ensures viewport + scrollbar + GPU settle
   // requestAnimationFrame(() => {
