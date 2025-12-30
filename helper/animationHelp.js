@@ -491,6 +491,12 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
     for (let idx = 0; idx < targets.length; idx++) {
       const t = targets[idx];
 
+      if (idx > 0) {
+        targetsList.appendChild(
+          el("div", { style: "border-top:3px solid rgba(113, 112, 112, 1);margin:10px 0;" })
+        );
+      }
+
       const keyInput = el("input", {
         type: "text",
         value: t.key,
@@ -803,7 +809,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
       syncFromUi();
 
       return el("div", { className: "anim-block" }, [
-        el("div", { className: "anim-subtitle", textContent: "Animation JSON (__anim.ui)" }),
+        el("div", { style: "margin-bottom:5px",className: "anim-subtitle", textContent: "Animation JSON (__anim.ui)" }),
         box,
         btnRow,
         msg,

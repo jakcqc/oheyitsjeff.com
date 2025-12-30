@@ -11,11 +11,61 @@ export function ensurePropOpsState(state) {
         "apply": {"stroke": null}
         }`,
         lastPreview: "",
+        showDocs: true,
         };
 
   }
+  if (state.__propOps.ui.showDocs == null) state.__propOps.ui.showDocs = true;
   if (!Array.isArray(state.__propOps.stack)) state.__propOps.stack = [];
 }
+
+const PROP_OPS_DOCS_TEXT = `Property Ops Rules
+
+Rules live at: state.__propOps.stack
+UI text lives at: state.__propOps.ui.ruleText
+
+Rule shape:
+{
+  "selector": { "circle": { "r": { "range": [20, 100] } } },
+  "apply": { "stroke": null }
+}
+
+Selector keys:
+- Tag name ("circle", "path", ...) or "*" for any tag.
+- Each attribute/style key maps to a match condition.
+
+Attribute keys:
+- "attrName" (e.g. "r", "fill", "opacity")
+- "style.someProp" (reads/writes inline style="..." e.g. "style.opacity")
+
+Condition types:
+1) Exact match:
+  { "fill": "#ff00aa" }
+  { "style.opacity": 0.5 }
+
+2) Explicit exact match:
+  { "fill": { "eq": [255, 0, 0] } }
+  { "fill": { "eq": "rgb(255,0,0)" } }
+
+3) Numeric range:
+  { "opacity": { "range": [0.2, 0.9] } }
+  { "r": { "min": 20, "max": 100 } }
+
+4) RGB/vector3 range (per channel):
+  { "fill": { "range": [[0,0,0],[64,64,64]] } }
+  { "fill": { "min": [0,0,0], "max": [64,64,64] } }
+  Singular range means exact:
+  { "fill": { "range": [[255,0,0]] } }
+
+Apply patches:
+- null removes an attribute:
+  { "stroke": null }
+- "style.someProp" patches inline style:
+  { "style.opacity": 0.5 }
+- "style": { ... } patches multiple style keys:
+  { "style": { "opacity": "0.5", "stroke": null } }
+- "$delete": true removes the element:
+  { "$delete": true }`;
 
 function isHexColor(s) {
   return typeof s === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s.trim());
@@ -261,10 +311,35 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
   const render = () => {
     root.innerHTML = "";
 
+    const mkDocs = () => {
+      const wrap = document.createElement("details");
+      wrap.open = !!getByPath(state, "__propOps.ui.showDocs");
+
+      const summary = document.createElement("summary");
+      summary.textContent = "Prop Ops rules (docs)";
+      wrap.appendChild(summary);
+
+      wrap.addEventListener("toggle", () => {
+        setByPath(state, "__propOps.ui.showDocs", !!wrap.open);
+      });
+
+      const body = document.createElement("pre");
+      body.textContent = PROP_OPS_DOCS_TEXT;
+      body.style.whiteSpace = "pre-wrap";
+      body.style.marginTop = "8px";
+      wrap.appendChild(body);
+
+      return wrap;
+    };
+
    const mkRuleArea = () => {
   const wrap = document.createElement("div");
   const lab = document.createElement("div");
   lab.textContent = "rule JSON";
+    lab.style.marginBottom = "5px";
+  const divider = document.createElement("div");
+  divider.style.borderTop = "3px solid rgba(139, 139, 139, 1)";
+  divider.style.margin = "6px 0 8px";
 
   const ta = document.createElement("textarea");
   ta.value = String(getByPath(state, "__propOps.ui.ruleText") ?? "");
@@ -275,11 +350,14 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
     setByPath(state, "__propOps.ui.ruleText", ta.value);
   });
 
+  wrap.appendChild(divider);
   wrap.appendChild(lab);
+
   wrap.appendChild(ta);
   return wrap;
 };
 
+    root.appendChild(mkDocs());
     //root.appendChild(mkArea("selector JSON", "__propOps.ui.selectorText"));
     //root.appendChild(mkArea("apply JSON", "__propOps.ui.applyText"));
     root.appendChild(mkRuleArea());

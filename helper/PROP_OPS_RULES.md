@@ -2,7 +2,7 @@
 
 The PropOps tab lets you add rules that match SVG elements and apply attribute/style patches.
 
-Rules live in saved settings at `state.__propOps.stack` and are edited as JSON in the UI (`state.__propOps.ui.ruleText`).
+
 
 ## Rule Shape
 
@@ -267,3 +267,5 @@ Notes:
   }
 }
 ```
+
+Rules live in saved settings at `state.__propOps.stack` and are edited as JSON in the UI (`state.__propOps.ui.ruleText`).
