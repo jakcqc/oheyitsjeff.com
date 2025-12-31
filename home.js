@@ -380,7 +380,7 @@ const projects = shuffle([
   {
     title: "Kakeya!!",
     image: "assets/Images/kakaya.png",
-    description: "The collatz conjecture about sequences leverages Kakaya sets, which are sets made form line segments!",
+    description: "The collatz conjecture about sequences leverages Kakaya sets, which are sets made from line segments!",
     link: "/kakeya/index.html"
   },
   {
