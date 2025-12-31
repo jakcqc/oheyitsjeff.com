@@ -167,7 +167,7 @@ const dragBehavior = d3.drag()
 
   d.fy = d.y;
   
-    runSimulationBurst(3000, 0.8,simulation);
+  runSimulationBurst(3000, 0.8,simulation);
   
 
 })
@@ -431,9 +431,23 @@ Promise.all([
 ]).then(() => {
   
   initOnceStable();
-  window.addEventListener("resize", () => {
-    renderHome();
-  });
+  // On mobile, scrolling can change `innerHeight` as the browser chrome shows/hides,
+  // which fires `resize` and would rebuild the whole scene (appearing as a "reset").
+  // Only re-render on meaningful viewport changes (width/orientation), not minor height shifts.
+  let lastVp = { w: Math.round(window.innerWidth), h: Math.round(window.innerHeight) };
+  let resizeRaf = 0;
+  const onResize = () => {
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      const next = { w: Math.round(window.innerWidth), h: Math.round(window.innerHeight) };
+      const widthChanged = next.w !== lastVp.w;
+      const bigHeightChanged = Math.abs(next.h - lastVp.h) > 140; // orientation / keyboard; not address-bar scroll
+      lastVp = next;
+      if (widthChanged || bigHeightChanged) renderHome();
+    });
+  };
+  window.addEventListener("resize", onResize);
   // double RAF ensures viewport + scrollbar + GPU settle
   // requestAnimationFrame(() => {
   //   requestAnimationFrame(initOnceStable);
