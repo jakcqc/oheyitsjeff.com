@@ -292,6 +292,12 @@ const projects = shuffle([
     image: "assets/Images/kakaya.png",
     description: "The collatz conjecture about sequences leverages Kakaya sets, which are sets made form line segments!",
     link: "/kakeya/index.html"
+  },
+  {
+    title: "Voronoi_Point_Ani",
+    image: "assets/Images/voro.png",
+    description: "Voronoi diagrams that move and grow. Fractal like patterns emerge. ",
+    link: "/Voronoi/index.html"
   }
 
 ]);

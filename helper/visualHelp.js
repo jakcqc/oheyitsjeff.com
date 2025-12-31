@@ -7,7 +7,7 @@ import { ensureTransformState,initTransformRuntime,buildTransformPanel} from "..
 import { registerTransformTab } from "../helper/transformHelp.js";
 import { applyPropOpsToSubtree } from "../helper/svgEditor.js";
 import { registerPropOpsTab } from "../helper/svgEditor.js";
-import { registerAnimateTab } from "../helper/animationHelp.js";
+import { registerAnimateTab, maybeAutoplayAnimation } from "../helper/animationHelp.js";
 import { registerLLMTab } from "../helper/llmTab.js";
 
 const TAB_BUILDERS = new Map();
@@ -376,6 +376,9 @@ makeLoadSVG(ioEl, mountEl, (svgEl, rawText) => {
   // svgTa.value = rawText;
   // runUserCode();
 });
+
+  // If a visual sets `state.__anim.ui.autoPlay = true`, start playing immediately (even if tab never opened).
+  maybeAutoplayAnimation({ mountEl, state, onChange: rerender });
   return { rebuildAutoUI };
 }
 
@@ -389,7 +392,11 @@ export function runVisualApp({
   const spec = VISUALS[visualId];
   if (!spec) throw new Error(`Unknown visualId "${visualId}"`);
 
-  const state = providedState || makeDefaultState(spec);
+  //const state = providedState || makeDefaultState(spec);
+const state = makeDefaultState(spec);
+if (providedState && typeof providedState === "object") {
+  mergeInto(state, providedState);
+}
 
   let instance = spec.create({ mountEl }, state);
 

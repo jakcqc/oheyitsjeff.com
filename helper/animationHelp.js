@@ -51,13 +51,15 @@ export function ensureAnimateState(state) {
       // UI convenience
       progress01: 0,       // 0..1 scrubber
       autoFromCurrent: true,
-      snapToEndOnStop: true
+      snapToEndOnStop: true,
+      autoPlay: false,
     };
   }
 
   // --- migrate legacy single-param fields into paramTargets if needed ---
   const ui = state.__anim.ui;
   if (!Array.isArray(ui.paramTargets)) ui.paramTargets = [];
+  if (ui.autoPlay == null) ui.autoPlay = false;
 
   const legacyKey = String(ui.paramKey || "").trim();
   const hasLegacy = legacyKey.length > 0;
@@ -75,6 +77,16 @@ export function ensureAnimateState(state) {
 
   // Clean up stray legacy numeric fields (safe to leave, but keeps state tidy)
   // We won't delete to avoid surprising older saves; but we also won't rely on them.
+}
+
+export function maybeAutoplayAnimation({ mountEl, state, onChange }) {
+  ensureAnimateState(state);
+  const ui = state.__anim?.ui || {};
+  if (!ui.autoPlay) return;
+
+  const rt = getOrMakeRuntime({ mountEl, state, onChange });
+  if (rt.playing) return;
+  rt.play();
 }
 
 export function registerAnimateTab() {
@@ -833,7 +845,6 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
   ]);
 
   root.appendChild(controls);
-
   // Keep UI synced while playing even if panel stays open
   const unsub = rt.subscribe(refresh);
 

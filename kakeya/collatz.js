@@ -53,12 +53,17 @@ registerVisual("kakeyaBesicovitchNeedle", {
     // Guides + stats
     { key: "showBoundsCircle", type: "boolean", default: false, description: "Draw a faint outer circle showing the fit-to-view bound." },
     { key: "showStats", type: "boolean", default: false, description: "Draw stats text." },
-    { key: "fitToView", type: "boolean", default: true, description: "Scale construction to fit viewport." },
+    //{ key: "fitToView", type: "boolean", default: true, description: "Scale construction to fit viewport." },
   ],
 
   create({ mountEl }, state) {
     const root = d3.select(mountEl);
-    const svg = root.append("svg").style("background", "white").style("touch-action", "none");
+    const svg = root.append("svg")
+      .style("background", "white")
+      .style("touch-action", "none")
+      .style("display", "block")
+      .style("width", "100%")
+      .style("height", "100%");
 
     // IMPORTANT for transforms tab: first <g> is the 'source group'.
     const gRoot = svg.append("g");
@@ -74,6 +79,7 @@ registerVisual("kakeyaBesicovitchNeedle", {
 
     let raf = null;
     let t0 = 0;
+    let ro = null;
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const rad = (deg) => (deg * Math.PI) / 180;
@@ -284,11 +290,15 @@ registerVisual("kakeyaBesicovitchNeedle", {
     }
 
     function rebuildIfNeeded() {
-      w = Math.max(1, window.innerWidth);
-      h = Math.max(1, window.innerHeight);
-      svg.attr("width", w).attr("height", h).attr("viewBox", `${-w / 2} ${-h / 2} ${w} ${h}`);
+      const rect = mountEl.getBoundingClientRect();
+      const ww = Math.floor(rect.width || 0);
+      const hh = Math.floor(rect.height || 0);
+      w = Math.max(1, ww > 50 ? ww : (window.innerWidth || 1));
+      h = Math.max(1, hh > 50 ? hh : (window.innerHeight || 1));
       Rpx = 0.46 * Math.min(w, h);
-
+      svg.attr("width", w).attr("height", h).attr("viewBox", `${-w / 2} ${-h / 2} ${w} ${h}`);
+      
+      // Put (0,0) of your drawing coords at the center of the screen
       const hash = JSON.stringify({
         levels: state.levels,
         splitK: state.splitK,
@@ -310,7 +320,7 @@ registerVisual("kakeyaBesicovitchNeedle", {
         monoColor: state.monoColor,
         showBoundsCircle: state.showBoundsCircle,
         showStats: state.showStats,
-        fitToView: state.fitToView,
+        //fitToView: state.fitToView,
       });
 
       if (hash === lastHash && cache) return;
@@ -329,22 +339,22 @@ registerVisual("kakeyaBesicovitchNeedle", {
       let scale = 1;
       let off = { x: 0, y: 0 };
 
-      if (state.fitToView) {
-        const pts = [];
-        for (const T of tris) pts.push(T.A, T.B, T.C);
-        const b = boundsOfPts(pts);
-        const cx = (b.minX + b.maxX) / 2;
-        const cy = (b.minY + b.maxY) / 2;
-        const rx = Math.max(1e-9, (b.maxX - b.minX) / 2);
-        const ry = Math.max(1e-9, (b.maxY - b.minY) / 2);
+      // if (state.fitToView) {
+      //   const pts = [];
+      //   for (const T of tris) pts.push(T.A, T.B, T.C);
+      //   const b = boundsOfPts(pts);
+      //   const cx = (b.minX + b.maxX) / 2;
+      //   const cy = (b.minY + b.maxY) / 2;
+      //   const rx = Math.max(1e-9, (b.maxX - b.minX) / 2);
+      //   const ry = Math.max(1e-9, (b.maxY - b.minY) / 2);
 
-        scale = 0.98 * Math.min(Rpx / rx, Rpx / ry);
-        off = { x: -cx, y: -cy };
-      } else {
-        // still scale a bit so normalized units aren’t tiny
-        scale = Rpx;
-      }
-
+      //   scale = 0.98 * Math.min(Rpx / rx, Rpx / ry);
+      //   off = { x: -cx, y: -cy };
+      // } else {
+      //   // still scale a bit so normalized units aren’t tiny
+      //   scale = Rpx;
+      // }
+      scale = Rpx;
       function mapP(p) {
         const q = add(p, off);
         return { x: q.x * scale, y: q.y * scale };
@@ -538,13 +548,14 @@ registerVisual("kakeyaBesicovitchNeedle", {
       rebuildIfNeeded();
     }
     window.addEventListener("resize", onResize);
+    ro = new ResizeObserver(() => onResize());
+    ro.observe(mountEl);
 
     // Click toggles sweep animation
     // svg.on("click", () => {
     //   state.animateSweep = !state.animateSweep;
     //   // no need to rebuild geometry; sweep will reflect next frame
     // });
-
     start();
 
     return {
@@ -555,6 +566,7 @@ registerVisual("kakeyaBesicovitchNeedle", {
       },
       destroy: () => {
         stop();
+        ro?.disconnect();
         window.removeEventListener("resize", onResize);
         svg.remove();
       },

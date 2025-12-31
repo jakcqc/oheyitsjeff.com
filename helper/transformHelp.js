@@ -2,7 +2,7 @@
 import { el, getByPath, setByPath, buildControl } from "./visualHelp.js";
 import { registerTab } from "./visualHelp.js";
 import { ensurePropOpsState, applyPropOpsToSubtree } from "./svgEditor.js";
-
+let isFirst = false;
 /* ------------------------ helpers ------------------------ */
 function resolveCenterAxis(val, size, fallback) {
   const n = Number(val);
@@ -12,6 +12,13 @@ function resolveCenterAxis(val, size, fallback) {
   if (n >= 0 && n <= 1) return n * size;
 
   // Otherwise treat as absolute SVG coordinate
+  return n;
+}
+
+function resolveCenterAxisWithOrigin(val, origin, size, fallback) {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return fallback;
+  if (n >= 0 && n <= 1) return origin + n * size;
   return n;
 }
 
@@ -95,6 +102,8 @@ export function ensureTransformState(state) {
 
   const ui = state.__xf.ui;
 
+  if (ui.preset == null) ui.preset = "";
+  if (ui.splitMode == null) ui.splitMode = "screen";
   if (ui.splitCount == null) ui.splitCount = 1;
   if (ui.applyToAll == null) ui.applyToAll = false;
   if (ui.activeTile == null) ui.activeTile = "0";
@@ -107,6 +116,32 @@ export function ensureTransformState(state) {
   ui.translateVec = ensureVector2(ui.translateVec, { x: 0, y: 0 });
 
   if (!Array.isArray(state.__xf.stack)) state.__xf.stack = [];
+}
+
+function buildTransformPresetStack(presetName) {
+  const name = String(presetName || "").trim();
+  if (!name) return null;
+
+  // Notes:
+  // - This replaces the current stack when applied.
+  // - Zoom ops intentionally omitted (per request).
+  if (name === "kaleidoscope4") {
+    return [
+      { kind: "split", count: 4 },
+      // Tile 0: mirror vertically
+      { kind: "flipY", targets: [0] },
+
+      // Tile 1: mirror both
+      { kind: "flipX", targets: [1] },
+      { kind: "flipY", targets: [1] },
+
+      // Tile 2: keep as-is
+      { kind: "flipX", targets: [3] },
+
+    ];
+  }
+
+  return null;
 }
 
 export function buildTransformPanel({ mountEl, state, xfRuntime }) {
@@ -168,6 +203,22 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
     const tileOptions = ["all", ...Array.from({ length: tileCountForUI }, (_, i) => String(i))];
 
     const xfParams = [
+      {
+        key: "__xf.ui.preset",
+        label: "preset",
+        type: "select",
+        default: "",
+        options: ["", "kaleidoscope4"],
+        description: "Choose a transform preset, then press Apply preset.",
+      },
+      {
+        key: "__xf.ui.splitMode",
+        label: "split mode",
+        type: "select",
+        default: "screen",
+        options: ["screen", "fit"],
+        description: 'screen = uniform downscale; fit = fill viewport per tile (e.g. split(2) => half width, full height).',
+      },
       {
         key: "__xf.ui.splitCount",
         label: "split copies",
@@ -301,6 +352,17 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
     );
 
     btnRow.appendChild(
+      mkBtn("apply preset", () => {
+        const preset = String(getByPath(state, "__xf.ui.preset") ?? "");
+        const next = buildTransformPresetStack(preset);
+        if (!next) return;
+        state.__xf.stack = next;
+        xfRuntime?.rebuildNow?.();
+        render();
+      })
+    );
+
+    btnRow.appendChild(
       mkBtn("rotate", () => {
         state.__xf.stack.push({ kind: "rotate", targets, deg: rotateDeg });
         xfRuntime?.rebuildNow?.();
@@ -393,6 +455,7 @@ export function registerTransformTab() {
   registerTab("transforms", ({ mountEl, state, xfRuntime }) =>
     buildTransformPanel({ mountEl, state, xfRuntime })
   );
+  
 }
 export function getEffectiveSplitCount(stack) {
   let s = 1;
@@ -474,7 +537,8 @@ export function initTransformRuntime({ mountEl, state }) {
     const hasProps = Array.isArray(propStack) && propStack.length > 0;
 
     const splitCount = getEffectiveSplitCount(stack);
-    const { w, h } = getSvgSize(svg);
+    const { x, y, w, h } = getSvgViewBox(svg);
+    const splitMode = String(state.__xf?.ui?.splitMode || "screen");
 
     // Nothing to do at all? true reset.
     if ((!stack || stack.length === 0) && !hasProps) {
@@ -486,7 +550,7 @@ export function initTransformRuntime({ mountEl, state }) {
       layerG.replaceChildren();
       sourceG.style.display = "";
 
-      const t = tileTransformFromStack({ stack, tile: 0, w, h });
+      const t = tileTransformFromStack({ stack, tile: 0, x, y, w, h });
       if (t) sourceG.setAttribute("transform", t);
       else {
         // important: don't lose propOps when stack is empty
@@ -502,24 +566,41 @@ export function initTransformRuntime({ mountEl, state }) {
     sourceG.style.display = "none";
     layerG.replaceChildren();
 
-    const grid = Math.ceil(Math.sqrt(splitCount));
-    const scale = 1 / grid;
+    let cols = Math.ceil(Math.sqrt(splitCount));
+    let rows = Math.ceil(splitCount / cols);
+
+    // "screen" keeps current behavior (uniform scale based on a square grid).
+    // "fit" fills the available area (non-uniform scale if rows !== cols).
+    let sx = 1;
+    let sy = 1;
+    if (splitMode === "screen") {
+      const grid = Math.ceil(Math.sqrt(splitCount));
+      cols = grid;
+      rows = grid;
+      sx = 1 / grid;
+      sy = 1 / grid;
+    } else {
+      sx = 1 / cols;
+      sy = 1 / rows;
+    }
 
     const kids = Array.from(sourceG.children);
     const N = kids.length || 1;
 
     for (let tile = 0; tile < splitCount; tile++) {
-      const col = tile % grid;
-      const row = Math.floor(tile / grid);
+      const col = tile % cols;
+      const row = Math.floor(tile / cols);
 
       const gTile = document.createElementNS(svg.namespaceURI, "g");
       gTile.setAttribute(
         "transform",
-        `translate(${col * w * scale},${row * h * scale}) scale(${scale})`
+        // Important: scale about the SVG viewBox origin (x,y), not about (0,0).
+        // This keeps centered viewBoxes (e.g. x=-w/2,y=-h/2) from "drifting" into the top-left when split.
+        `translate(${x + col * w * sx},${y + row * h * sy}) scale(${sx} ${sy}) translate(${-x} ${-y})`
       );
 
       const gXf = document.createElementNS(svg.namespaceURI, "g");
-      gXf.setAttribute("transform", tileTransformFromStack({ stack, tile, w, h }));
+      gXf.setAttribute("transform", tileTransformFromStack({ stack, tile, x, y, w, h }));
 
       let localIdx = 0;
       for (const n of kids) {
@@ -539,20 +620,30 @@ export function initTransformRuntime({ mountEl, state }) {
   function destroy() {
     try { mo.disconnect(); } catch {}
   }
+  if(!isFirst){
+    const preset = String(getByPath(state, "__xf.ui.preset") ?? "");
+        const next = buildTransformPresetStack(preset);
+        if (next){
+        state.__xf.stack = next;
+        isFirst = true;
+        //render();
+        }
+  }
+        //xfRuntime?.rebuildNow?.();
 
   return { rebuildNow, resetToInitial, destroy };
 }
 
-export function getSvgSize(svg) {
+export function getSvgViewBox(svg) {
   const vb = svg.viewBox && svg.viewBox.baseVal;
-  if (vb && vb.width > 0 && vb.height > 0) return { w: vb.width, h: vb.height };
+  if (vb && vb.width > 0 && vb.height > 0) return { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
 
   const aw = parseFloat(svg.getAttribute("width") || "");
   const ah = parseFloat(svg.getAttribute("height") || "");
-  if (Number.isFinite(aw) && aw > 0 && Number.isFinite(ah) && ah > 0) return { w: aw, h: ah };
+  if (Number.isFinite(aw) && aw > 0 && Number.isFinite(ah) && ah > 0) return { x: 0, y: 0, w: aw, h: ah };
 
   const r = svg.getBoundingClientRect();
-  return { w: r.width || 1, h: r.height || 1 };
+  return { x: 0, y: 0, w: r.width || 1, h: r.height || 1 };
 }
 
 function opAppliesToTile(op, tile) {
@@ -566,9 +657,10 @@ function opAppliesToTile(op, tile) {
   return Array.isArray(op.targets) && op.targets.includes(tile);
 }
 
-function tileTransformFromStack({ stack, tile, w, h }) {
-  const cx = w / 2;
-  const cy = h / 2;
+//function tileTransformFromStack({ stack, tile, w, h }) {
+function tileTransformFromStack({ stack, tile, x, y, w, h }) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
 
   const parts = [];
   for (const op of stack || []) {
@@ -579,21 +671,23 @@ function tileTransformFromStack({ stack, tile, w, h }) {
       const deg = Number(op.deg || 0);
       parts.push(`rotate(${deg} ${cx} ${cy})`);
     } else if (op.kind === "flipX") {
-      parts.push(`translate(${w} 0) scale(-1 1)`);
+      // Mirror about vertical center line x = cx
+      parts.push(`translate(${2 * cx} 0) scale(-1 1)`);
     } else if (op.kind === "flipY") {
-      parts.push(`translate(0 ${h}) scale(1 -1)`);
+      // Mirror about horizontal center line y = cy
+      parts.push(`translate(0 ${2 * cy}) scale(1 -1)`);
     } else if (op.kind === "zoom") {
       const f = Number(op.factor || 1);
       if (Number.isFinite(f) && f !== 1 && f > 0) {
         // NEW: center vector2D; fallback to svg center
         const c = op.center;
 
-        const zx = resolveCenterAxis(c?.x, w, cx);
-        const zy = resolveCenterAxis(c?.y, h, cy);
+        const zx = resolveCenterAxisWithOrigin(c?.x, x, w, cx);
+        const zy = resolveCenterAxisWithOrigin(c?.y, y, h, cy);
 
         // backward compat (if old ops exist): op.cx/op.cy may also be fractional percentages
-        const cxOld = Number.isFinite(+op.cx) ? resolveCenterAxis(op.cx, w, zx) : zx;
-        const cyOld = Number.isFinite(+op.cy) ? resolveCenterAxis(op.cy, h, zy) : zy;
+        const cxOld = Number.isFinite(+op.cx) ? resolveCenterAxisWithOrigin(op.cx, x, w, zx) : zx;
+        const cyOld = Number.isFinite(+op.cy) ? resolveCenterAxisWithOrigin(op.cy, y, h, zy) : zy;
 
         parts.push(
           `translate(${cxOld} ${cyOld}) scale(${f}) translate(${-cxOld} ${-cyOld})`
