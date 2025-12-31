@@ -21,6 +21,32 @@ body{
   background-color: #FF9FF5;
   top: 65px;
 }
+#mobileModeToggle{
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 20;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--color-accent);
+  background: var(--color-main);
+  color: var(--color-accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 2px 2px var(--color-accent);
+}
+#mobileModeToggle[aria-pressed="true"]{
+  background: #FF9FF5;
+}
+#mobileModeToggle:hover{
+  cursor: pointer;
+  box-shadow: 3px 3px var(--color-accent);
+}
+#mobileModeToggle:focus-visible{
+  outline: 3px solid #FF9FF5;
+  outline-offset: 2px;
+}
 #jIcon{
   right: 5px;
   position: absolute;

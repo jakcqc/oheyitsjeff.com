@@ -6,6 +6,96 @@ let svg;
 let initStrength = 0.02;
 let dragSimStrength = 0.09;
 let needsSingleBubbleMode = false;
+const MOBILE_BREAKPOINT_PX = 600;
+const MOBILE_MODE_STORAGE_KEY = "home.mobileMode"; // "bubbles" | "cards"
+
+function getMobileModePref() {
+  const raw = localStorage.getItem(MOBILE_MODE_STORAGE_KEY);
+  return raw === "bubbles" || raw === "cards" ? raw : null;
+}
+
+function setMobileModePref(mode) {
+  localStorage.setItem(MOBILE_MODE_STORAGE_KEY, mode);
+}
+
+function isMobileLayout() {
+  return Math.round(window.innerWidth) < MOBILE_BREAKPOINT_PX;
+}
+
+function getEffectiveMode() {
+  if (!isMobileLayout()) return "bubbles";
+  return getMobileModePref() === "bubbles" ? "bubbles" : "cards";
+}
+
+function updateMobileToggleUi() {
+  const btn = document.getElementById("mobileModeToggle");
+  if (!btn) return;
+
+  const isMobile = isMobileLayout();
+  btn.style.display = isMobile ? "inline-flex" : "none";
+
+  const mode = getEffectiveMode();
+  const isBubbles = mode === "bubbles";
+  btn.setAttribute("aria-pressed", isBubbles ? "true" : "false");
+  btn.textContent = isBubbles ? "cards" : "bubbles";
+  btn.setAttribute("aria-label", isBubbles ? "Switch to cards view" : "Switch to bubbles view");
+}
+
+function clearHome() {
+  const backgroundDiv = document.getElementById("background");
+  if (backgroundDiv) backgroundDiv.innerHTML = "";
+  d3.select("#d3-container").selectAll("*").remove();
+}
+
+function renderHome() {
+  clearHome();
+  updateMobileToggleUi();
+
+  const mode = getEffectiveMode();
+  const isMobile = isMobileLayout();
+
+  width = Math.round(window.innerWidth);
+  bubbleRadius = Math.min(width * 0.15, 50);
+
+
+  if (mode === "cards") {
+    const backgroundDiv = document.getElementById("background");
+    projects.forEach(project => {
+      const projectHTML = `
+          <div class="outter">
+              <div class="apps">
+                  <div class="card-header">${project.title}</div>
+                  <div class="card-content" onclick="goTo('${project.link}')">
+                      <img class="thumb" src="${project.image}" alt="${project.title}">
+                  </div>
+                  <div class="overlay">
+                      <div class="styleInfo"><span class="tab1"></span>${project.description}</div>
+                  </div>
+              </div>
+          </div>
+      `;
+      backgroundDiv.innerHTML += projectHTML;
+    });
+    return;
+  }
+
+  // Bubbles mode:
+  // On small screens we may not have enough vertical room for all bubbles to settle without being clipped.
+  // Estimate a minimum required height based on a loose packing grid.
+  const baseHeight = Math.round(window.innerHeight - 68);
+  const bubbleDiameter = (bubbleRadius * 2) + (textRadius * 2) + 16; // include label ring + padding
+  const cols = Math.max(1, Math.floor((width - 16) / bubbleDiameter));
+  const rows = Math.ceil(projects.length / cols);
+  const minBubbleAreaHeight = Math.ceil(rows * bubbleDiameter);
+  height = isMobile ? Math.max(baseHeight, minBubbleAreaHeight) : baseHeight;
+
+  const svg = d3.select("#d3-container")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+  const simulation = createD3Bubbles(svg);
+  runSimulationBurst(2000, undefined, simulation);
+}
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -76,9 +166,9 @@ const dragBehavior = d3.drag()
   d.fx = d.x;
 
   d.fy = d.y;
-  if(!needsSingleBubbleMode){
+  
     runSimulationBurst(3000, 0.8,simulation);
-  }
+  
 
 })
 .on("drag", (event, d) => {
@@ -321,47 +411,17 @@ const projects = shuffle([
 
 // });
 function initOnceStable() {
-  // lock dimensions AFTER browser settles
-  width = Math.round(window.innerWidth);
-  height = Math.round(window.innerHeight - 68);
-  bubbleRadius = Math.min(width * 0.15, 50);
+  const btn = document.getElementById("mobileModeToggle");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const cur = getEffectiveMode();
+      const next = cur === "bubbles" ? "cards" : "bubbles";
+      setMobileModePref(next);
+      renderHome();
+    });
+  }
 
- 
-needsSingleBubbleMode = width < 600;
-
-
-if (needsSingleBubbleMode) {
-  const backgroundDiv = document.getElementById('background');
-  projects.forEach(project => {
-      const projectHTML = `
-          <div class="outter">
-              <div class="apps">
-                  <div class="card-header">${project.title}</div>
-                  <div class="card-content" onclick="goTo('${project.link}')">
-                      <img class="thumb" src="${project.image}" alt="${project.title}">
-                  </div>
-                  <div class="overlay">
-                      <div class="styleInfo"><span class="tab1"></span>${project.description}</div>
-                  </div>
-              </div>
-          </div>
-      `;
-      backgroundDiv.innerHTML += projectHTML;
-  });
-} else {
-   d3.select("#d3-container").selectAll("*").remove();
-
-  const svg = d3.select("#d3-container")
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
-  const simulation = createD3Bubbles(svg);
-  runSimulationBurst(2000, undefined, simulation);
-}
-
-  //const simulation = createD3Bubbles(svg);
-
-  // start simulation AFTER layout is stable
+  renderHome();
 }
 
 // wait for EVERYTHING that causes reflow
@@ -371,6 +431,9 @@ Promise.all([
 ]).then(() => {
   
   initOnceStable();
+  window.addEventListener("resize", () => {
+    renderHome();
+  });
   // double RAF ensures viewport + scrollbar + GPU settle
   // requestAnimationFrame(() => {
   //   requestAnimationFrame(initOnceStable);
