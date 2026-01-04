@@ -62,6 +62,39 @@ function fmtNum(v) {
   return Number.isFinite(v) ? String(v) : "NaN";
 }
 
+const DEFAULT_MATRIX = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+/**
+ * Matrix docs (UI + runtime):
+ * - The six fields map directly to the SVG `matrix(a b c d e f)` transform.
+ * - We apply it in the stack order, so it composes with rotate/zoom/translate like other ops.
+ * - Typical shears: set `c` for x-shear (leans right when positive) or `b` for y-shear.
+ * - Typical offsets: use `e` (x translate) and `f` (y translate) if you want the matrix itself to move content.
+ * - Values are clamped only for finiteness; no normalization is done, so you can combine scale + shear freely.
+ */
+
+function toFiniteNumber(val, fallback = 0) {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clampNumber(v, lo, hi) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return lo;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function ensureMatrix6(obj) {
+  const m = obj && typeof obj === "object" ? obj : {};
+  return {
+    a: toFiniteNumber(m.a, DEFAULT_MATRIX.a),
+    b: toFiniteNumber(m.b, DEFAULT_MATRIX.b),
+    c: toFiniteNumber(m.c, DEFAULT_MATRIX.c),
+    d: toFiniteNumber(m.d, DEFAULT_MATRIX.d),
+    e: toFiniteNumber(m.e, DEFAULT_MATRIX.e),
+    f: toFiniteNumber(m.f, DEFAULT_MATRIX.f),
+  };
+}
+
 function formatXfStack(stack) {
   if (!stack?.length) return "(no transforms applied)";
   return stack
@@ -82,6 +115,14 @@ function formatXfStack(stack) {
       if (op.kind === "translate") {
         const v = op.v || { x: op.x, y: op.y };
         return `${i}: translate(targets=${tgt}, v=(${fmtNum(+v?.x)},${fmtNum(+v?.y)}))`;
+      }
+      if (op.kind === "matrix") {
+        const m = Array.isArray(op.m) ? op.m : [op.a, op.b, op.c, op.d, op.e, op.f];
+        return `${i}: matrix(targets=${tgt}, m=${(m || []).map(fmtNum).join(",")})`;
+      }
+      if (op.kind === "planes3d") {
+        const offset = op.offset || { x: 0, y: 0 };
+        return `${i}: planes3d(targets=${tgt}, count=${op.count}, baseScale=${fmtNum(+op.baseScale)}, step=${fmtNum(+op.scaleStep)}, offset=(${fmtNum(+offset.x)},${fmtNum(+offset.y)}), opacity=${fmtNum(+op.opacity)})`;
       }
       return `${i}: ${op.kind}`;
     })
@@ -110,10 +151,20 @@ export function ensureTransformState(state) {
   if (ui.tileTargets == null) ui.tileTargets = "0";
   if (ui.rotateDeg == null) ui.rotateDeg = 90;
   if (ui.zoomFactor == null) ui.zoomFactor = 1.25;
+  ui.matrix = ensureMatrix6(ui.matrix);
 
   // NEW: zoom center + translate vector (UI)
   ui.zoomCenter = ensureVector2(ui.zoomCenter, { x: NaN, y: NaN }); // NaN => use svg center
   ui.translateVec = ensureVector2(ui.translateVec, { x: 0, y: 0 });
+
+  // NEW: stacked "3D" planes (UI)
+  if (ui.planeCount == null) ui.planeCount = 3;
+  if (ui.planeBaseScale == null) ui.planeBaseScale = 1;
+  if (ui.planeScaleStep == null) ui.planeScaleStep = -0.12;
+  if (ui.planeOpacity == null) ui.planeOpacity = 0.7;
+  if (ui.planeOpacityFalloff == null) ui.planeOpacityFalloff = 0.12;
+  ui.planeOffset = ensureVector2(ui.planeOffset, { x: 0, y: 0 });
+  ui.planeCenter = ensureVector2(ui.planeCenter, { x: NaN, y: NaN });
 
   if (!Array.isArray(state.__xf.stack)) state.__xf.stack = [];
 }
@@ -188,6 +239,40 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
     row.appendChild(makeBox("x"));
     row.appendChild(el("div", { className: "vr-help", textContent: "y" }));
     row.appendChild(makeBox("y"));
+
+    wrap.appendChild(row);
+    return wrap;
+  };
+
+  const buildMatrixControl = () => {
+    const wrap = el("div", { className: "vr-row" });
+    wrap.appendChild(el("label", { className: "vr-label", textContent: "matrix (a b c d e f)" }));
+    wrap.appendChild(el("div", { className: "vr-help", textContent: "SVG transform matrix; leave blank to keep defaults." }));
+
+    const row = el("div", { className: "vr-rangeRow" });
+    const keys = ["a", "b", "c", "d", "e", "f"];
+
+    const syncVal = (axis, raw) => {
+      const next = ensureMatrix6(getByPath(state, "__xf.ui.matrix"));
+      const n = raw.trim() === "" ? DEFAULT_MATRIX[axis] : Number(raw);
+      next[axis] = Number.isFinite(n) ? n : next[axis];
+      setByPath(state, "__xf.ui.matrix", next);
+    };
+
+    for (const axis of keys) {
+      const box = el("input", { type: "number", step: "0.01" });
+      const cur = ensureMatrix6(getByPath(state, "__xf.ui.matrix"));
+      box.value = Number.isFinite(cur[axis]) ? String(cur[axis]) : "";
+      box.addEventListener("change", () => {
+        syncVal(axis, box.value || "");
+        render();
+      });
+
+      const wrapAxis = el("div", { className: "vr-vecField" });
+      wrapAxis.appendChild(el("div", { className: "vr-vecLabel", textContent: axis }));
+      wrapAxis.appendChild(box);
+      row.appendChild(wrapAxis);
+    }
 
     wrap.appendChild(row);
     return wrap;
@@ -274,6 +359,54 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         step: 0.05,
         description: "Zoom in uses this; zoom out uses 1 / this.",
       },
+      {
+        key: "__xf.ui.planeCount",
+        label: "3D plane count",
+        type: "number",
+        default: 3,
+        min: 0,
+        max: 32,
+        step: 1,
+        description: "0 disables planes; >1 stacks the SVG into multiple layers.",
+      },
+      {
+        key: "__xf.ui.planeBaseScale",
+        label: "plane base scale",
+        type: "number",
+        default: 1,
+        min: 0.01,
+        max: 10,
+        step: 0.01,
+      },
+      {
+        key: "__xf.ui.planeScaleStep",
+        label: "plane scale step",
+        type: "number",
+        default: -0.12,
+        min: -5,
+        max: 5,
+        step: 0.01,
+        description: "Added per depth (negative shrinks deeper planes).",
+      },
+      {
+        key: "__xf.ui.planeOpacity",
+        label: "plane opacity",
+        type: "number",
+        default: 0.7,
+        min: 0,
+        max: 1,
+        step: 0.05,
+      },
+      {
+        key: "__xf.ui.planeOpacityFalloff",
+        label: "opacity falloff",
+        type: "number",
+        default: 0.12,
+        min: 0,
+        max: 1,
+        step: 0.02,
+        description: "Opacity reduction per depth step (clamped to 0-1).",
+      },
     ];
 
     const controls = document.createElement("div");
@@ -298,6 +431,8 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
       controls.appendChild(node);
     }
 
+    controls.appendChild(buildMatrixControl());
+
     // NEW UI: zoom center + translate vec (without needing buildControl support)
     controls.appendChild(
       buildVector2Control({
@@ -314,6 +449,26 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         key: "__xf.ui.translateVec",
         label: "translate (x,y)",
         description: "Moves targeted tiles by (x,y) in SVG coords.",
+        blankIsNaN: false,
+        step: 1,
+      })
+    );
+
+    controls.appendChild(
+      buildVector2Control({
+        key: "__xf.ui.planeCenter",
+        label: "plane center",
+        description: "Scale planes about this point; blank = SVG center.",
+        blankIsNaN: true,
+        step: 1,
+      })
+    );
+
+    controls.appendChild(
+      buildVector2Control({
+        key: "__xf.ui.planeOffset",
+        label: "plane offset per depth",
+        description: "Translate each plane by (dx,dy) * depth index.",
         blankIsNaN: false,
         step: 1,
       })
@@ -336,6 +491,15 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
     const rotateDeg = Number(getByPath(state, "__xf.ui.rotateDeg") ?? 0);
     const zoomFactor = Number(getByPath(state, "__xf.ui.zoomFactor") ?? 1.25);
     const splitCount = clampInt(Number(getByPath(state, "__xf.ui.splitCount") ?? 1), 1, 64);
+    const readPlaneUi = () => ({
+      count: clampInt(Number(getByPath(state, "__xf.ui.planeCount") ?? 0), 0, 64),
+      baseScale: toFiniteNumber(getByPath(state, "__xf.ui.planeBaseScale"), 1),
+      scaleStep: toFiniteNumber(getByPath(state, "__xf.ui.planeScaleStep"), 0),
+      opacity: clampNumber(toFiniteNumber(getByPath(state, "__xf.ui.planeOpacity"), 0.7), 0, 1),
+      opacityFalloff: clampNumber(toFiniteNumber(getByPath(state, "__xf.ui.planeOpacityFalloff"), 0.12), 0, 1),
+      offset: ensureVector2(getByPath(state, "__xf.ui.planeOffset"), { x: 0, y: 0 }),
+      center: ensureVector2(getByPath(state, "__xf.ui.planeCenter"), { x: NaN, y: NaN }),
+    });
 
     const targets = resolveUiTargets({
       applyToAll: !!getByPath(state, "__xf.ui.applyToAll"),
@@ -419,6 +583,15 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
     );
 
     btnRow.appendChild(
+      mkBtn("apply matrix", () => {
+        const m = ensureMatrix6(getByPath(state, "__xf.ui.matrix"));
+        state.__xf.stack.push({ kind: "matrix", targets, m: [m.a, m.b, m.c, m.d, m.e, m.f] });
+        xfRuntime?.rebuildNow?.();
+        render();
+      })
+    );
+
+    btnRow.appendChild(
       mkBtn("undo", () => {
         state.__xf.stack.pop();
         xfRuntime?.rebuildNow?.();
@@ -430,6 +603,26 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
       mkBtn("reset", () => {
         state.__xf.stack.length = 0;
         xfRuntime?.resetToInitial?.();
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("apply 3D planes", () => {
+        const cfg = readPlaneUi();
+        if (!cfg.count) return;
+        state.__xf.stack.push({
+          kind: "planes3d",
+          targets,
+          count: cfg.count,
+          baseScale: cfg.baseScale,
+          scaleStep: cfg.scaleStep,
+          offset: { x: +cfg.offset.x, y: +cfg.offset.y },
+          center: { x: +cfg.center.x, y: +cfg.center.y },
+          opacity: cfg.opacity,
+          opacityFalloff: cfg.opacityFalloff,
+        });
+        xfRuntime?.rebuildNow?.();
         render();
       })
     );
@@ -466,6 +659,13 @@ export function getEffectiveSplitCount(stack) {
 export function clampInt(v, lo, hi) {
   const n = Number.isFinite(v) ? Math.trunc(v) : Math.trunc(Number(v) || 0);
   return Math.max(lo, Math.min(hi, n));
+}
+
+function combineTransforms(...parts) {
+  return parts
+    .map(p => (typeof p === "string" ? p.trim() : ""))
+    .filter(Boolean)
+    .join(" ");
 }
 
 /* ------------------------ Transform runtime (SVG) ------------------------ */
@@ -539,6 +739,16 @@ export function initTransformRuntime({ mountEl, state }) {
     const splitCount = getEffectiveSplitCount(stack);
     const { x, y, w, h } = getSvgViewBox(svg);
     const splitMode = String(state.__xf?.ui?.splitMode || "screen");
+    const planeOps = (stack || []).filter(op => op?.kind === "planes3d");
+    const totalTiles = Math.max(1, splitCount);
+    const planesApply = planeOps.some(op => {
+      if (!op) return false;
+      const count = clampInt(op.count ?? 0, 0, 64);
+      if (count <= 0) return false;
+      if (op.targets == null) return true;
+      if (typeof op.tile === "number") return op.tile >= 0 && op.tile < totalTiles;
+      return Array.isArray(op.targets) && op.targets.some(t => Number.isInteger(t) && t >= 0 && t < totalTiles);
+    });
 
     // Nothing to do at all? true reset.
     if ((!stack || stack.length === 0) && !hasProps) {
@@ -546,7 +756,9 @@ export function initTransformRuntime({ mountEl, state }) {
       return;
     }
 
-    if (splitCount <= 1) {
+    const needsCloneLayer = splitCount > 1 || planesApply;
+
+    if (!needsCloneLayer) {
       layerG.replaceChildren();
       sourceG.style.display = "";
 
@@ -562,57 +774,79 @@ export function initTransformRuntime({ mountEl, state }) {
       return;
     }
 
-    // split > 1
+    // split > 1 OR planes requested
     sourceG.style.display = "none";
     layerG.replaceChildren();
 
-    let cols = Math.ceil(Math.sqrt(splitCount));
-    let rows = Math.ceil(splitCount / cols);
+    let cols = 1;
+    let rows = 1;
 
-    // "screen" keeps current behavior (uniform scale based on a square grid).
-    // "fit" fills the available area (non-uniform scale if rows !== cols).
     let sx = 1;
     let sy = 1;
-    if (splitMode === "screen") {
-      const grid = Math.ceil(Math.sqrt(splitCount));
-      cols = grid;
-      rows = grid;
-      sx = 1 / grid;
-      sy = 1 / grid;
-    } else {
-      sx = 1 / cols;
-      sy = 1 / rows;
+    if (splitCount > 1) {
+      cols = Math.ceil(Math.sqrt(splitCount));
+      rows = Math.ceil(splitCount / cols);
+
+      // "screen" keeps current behavior (uniform scale based on a square grid).
+      // "fit" fills the available area (non-uniform scale if rows !== cols).
+      if (splitMode === "screen") {
+        const grid = Math.ceil(Math.sqrt(splitCount));
+        cols = grid;
+        rows = grid;
+        sx = 1 / grid;
+        sy = 1 / grid;
+      } else {
+        sx = 1 / cols;
+        sy = 1 / rows;
+      }
     }
 
     const kids = Array.from(sourceG.children);
     const N = kids.length || 1;
+    const tiles = splitCount > 1 ? splitCount : 1;
 
-    for (let tile = 0; tile < splitCount; tile++) {
-      const col = tile % cols;
-      const row = Math.floor(tile / cols);
+    for (let tile = 0; tile < tiles; tile++) {
+      const col = splitCount > 1 ? tile % cols : 0;
+      const row = splitCount > 1 ? Math.floor(tile / cols) : 0;
 
       const gTile = document.createElementNS(svg.namespaceURI, "g");
-      gTile.setAttribute(
-        "transform",
-        // Important: scale about the SVG viewBox origin (x,y), not about (0,0).
-        // This keeps centered viewBoxes (e.g. x=-w/2,y=-h/2) from "drifting" into the top-left when split.
-        `translate(${x + col * w * sx},${y + row * h * sy}) scale(${sx} ${sy}) translate(${-x} ${-y})`
-      );
-
-      const gXf = document.createElementNS(svg.namespaceURI, "g");
-      gXf.setAttribute("transform", tileTransformFromStack({ stack, tile, x, y, w, h }));
-
-      let localIdx = 0;
-      for (const n of kids) {
-        const cloned = n.cloneNode(true);
-        tagCloneForMode(cloned, tile, localIdx, N);
-        dedupeIdsInSubtree(cloned, `__xf_${tile}_${localIdx}`);
-        if (hasProps) applyPropOpsToSubtree(cloned, propStack);
-        gXf.appendChild(cloned);
-        localIdx++;
+      if (splitCount > 1) {
+        gTile.setAttribute(
+          "transform",
+          // Important: scale about the SVG viewBox origin (x,y), not about (0,0).
+          // This keeps centered viewBoxes (e.g. x=-w/2,y=-h/2) from "drifting" into the top-left when split.
+          `translate(${x + col * w * sx},${y + row * h * sy}) scale(${sx} ${sy}) translate(${-x} ${-y})`
+        );
       }
 
-      gTile.appendChild(gXf);
+      const baseTransform = tileTransformFromStack({ stack, tile, x, y, w, h });
+      const planeCfg = planesApply ? getPlaneConfigForTile(stack, tile) : null;
+      const planeCount = planeCfg ? planeCfg.count : 1;
+      const totalPerTile = planeCount * N;
+
+      for (let plane = 0; plane < planeCount; plane++) {
+        const gPlane = document.createElementNS(svg.namespaceURI, "g");
+        const planeTransform = planeCfg
+          ? planeTransformFromConfig({ cfg: planeCfg, idx: plane, x, y, w, h })
+          : "";
+        const combined = combineTransforms(planeTransform, baseTransform);
+        if (combined) gPlane.setAttribute("transform", combined);
+        if (planeCfg) gPlane.style.opacity = String(planeOpacityForIndex(planeCfg, plane));
+
+        let localIdx = 0;
+        for (const n of kids) {
+          const cloned = n.cloneNode(true);
+          const globalIdx = tile * totalPerTile + plane * N + localIdx;
+          tagCloneForMode(cloned, tile, localIdx, N, plane, planeCount, globalIdx);
+          dedupeIdsInSubtree(cloned, `__xf_${tile}_${plane}_${localIdx}`);
+          if (hasProps) applyPropOpsToSubtree(cloned, propStack);
+          gPlane.appendChild(cloned);
+          localIdx++;
+        }
+
+        gTile.appendChild(gPlane);
+      }
+
       layerG.appendChild(gTile);
     }
   }
@@ -620,14 +854,16 @@ export function initTransformRuntime({ mountEl, state }) {
   function destroy() {
     try { mo.disconnect(); } catch {}
   }
-  if(!isFirst){
+  if (!isFirst) {
     const preset = String(getByPath(state, "__xf.ui.preset") ?? "");
-        const next = buildTransformPresetStack(preset);
-        if (next){
+    const next = buildTransformPresetStack(preset);
+    if (next) {
+      const hasStack = Array.isArray(state.__xf?.stack) && state.__xf.stack.length > 0;
+      if (!hasStack) {
         state.__xf.stack = next;
-        isFirst = true;
-        //render();
-        }
+      }
+      isFirst = true;
+    }
   }
         //xfRuntime?.rebuildNow?.();
 
@@ -699,22 +935,79 @@ function tileTransformFromStack({ stack, tile, x, y, w, h }) {
       const tx = Number.isFinite(+v?.x) ? +v.x : 0;
       const ty = Number.isFinite(+v?.y) ? +v.y : 0;
       if (tx || ty) parts.push(`translate(${tx} ${ty})`);
+    } else if (op.kind === "matrix") {
+      const m = Array.isArray(op.m) ? op.m : [op.a, op.b, op.c, op.d, op.e, op.f];
+      const safe = Array.isArray(m) && m.length === 6 && m.every(n => Number.isFinite(+n));
+      if (safe) parts.push(`matrix(${m.map(n => +n).join(" ")})`);
+    } else if (op.kind === "planes3d") {
+      // handled during clone-building (needs additional layers)
+      continue;
     }
   }
 
   return parts.join(" ");
 }
 
-export function tagCloneForMode(node, tile, localIdx, N) {
+function getPlaneConfigForTile(stack, tile) {
+  if (!Array.isArray(stack)) return null;
+
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const op = stack[i];
+    if (!op || op.kind !== "planes3d") continue;
+    if (!opAppliesToTile(op, tile)) continue;
+
+    const count = clampInt(op.count ?? 0, 0, 64);
+    if (count <= 0) return null;
+
+    return {
+      count,
+      baseScale: toFiniteNumber(op.baseScale ?? 1, 1),
+      scaleStep: toFiniteNumber(op.scaleStep ?? 0, 0),
+      offset: ensureVector2(op.offset, { x: 0, y: 0 }),
+      center: ensureVector2(op.center, { x: NaN, y: NaN }),
+      opacity: clampNumber(toFiniteNumber(op.opacity ?? op.baseOpacity ?? 1, 1), 0, 1),
+      opacityFalloff: clampNumber(toFiniteNumber(op.opacityFalloff ?? 0, 0), 0, 1),
+    };
+  }
+
+  return null;
+}
+
+function planeTransformFromConfig({ cfg, idx, x, y, w, h }) {
+  if (!cfg) return "";
+
+  const cx = resolveCenterAxisWithOrigin(cfg.center?.x, x, w, x + w / 2);
+  const cy = resolveCenterAxisWithOrigin(cfg.center?.y, y, h, y + h / 2);
+  const scale = Math.max(0.001, cfg.baseScale + cfg.scaleStep * idx);
+  const dx = toFiniteNumber(cfg.offset?.x, 0) * idx;
+  const dy = toFiniteNumber(cfg.offset?.y, 0) * idx;
+
+  const parts = [];
+  if (scale !== 1) parts.push(`translate(${cx} ${cy}) scale(${scale}) translate(${-cx} ${-cy})`);
+  if (dx || dy) parts.push(`translate(${dx} ${dy})`);
+  return parts.join(" ");
+}
+
+function planeOpacityForIndex(cfg, idx) {
+  const base = clampNumber(toFiniteNumber(cfg?.opacity, 1), 0, 1);
+  const falloff = clampNumber(toFiniteNumber(cfg?.opacityFalloff, 0), 0, 1);
+  return clampNumber(base - falloff * idx, 0, 1);
+}
+
+export function tagCloneForMode(node, tile, localIdx, N, plane = 0, planeCount = 1, globalIdxOverride) {
   if (!(node instanceof Element)) return;
+  const totalPerTile = N * Math.max(1, planeCount);
+  const globalIdx = globalIdxOverride ?? tile * totalPerTile + plane * N + localIdx;
   node.setAttribute("data-xf-mode", String(tile));
   node.setAttribute("data-xf-source-index", String(localIdx));
-  node.setAttribute("data-xf-global-index", String(tile * N + localIdx));
+  node.setAttribute("data-xf-global-index", String(globalIdx));
+  node.setAttribute("data-xf-plane", String(plane));
 
   for (const el of node.querySelectorAll("*")) {
     el.setAttribute("data-xf-mode", String(tile));
     el.setAttribute("data-xf-source-index", String(localIdx));
-    el.setAttribute("data-xf-global-index", String(tile * N + localIdx));
+    el.setAttribute("data-xf-global-index", String(globalIdx));
+    el.setAttribute("data-xf-plane", String(plane));
   }
 }
 

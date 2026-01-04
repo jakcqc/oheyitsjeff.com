@@ -8,6 +8,7 @@ let dragSimStrength = 0.09;
 let needsSingleBubbleMode = false;
 const MOBILE_BREAKPOINT_PX = 600;
 const MOBILE_MODE_STORAGE_KEY = "home.mobileMode"; // "bubbles" | "cards"
+const THEME_STORAGE_KEY = "home.theme"; // "light" | "dark"
 
 function getMobileModePref() {
   const raw = localStorage.getItem(MOBILE_MODE_STORAGE_KEY);
@@ -16,6 +17,28 @@ function getMobileModePref() {
 
 function setMobileModePref(mode) {
   localStorage.setItem(MOBILE_MODE_STORAGE_KEY, mode);
+}
+function getThemePref() {
+  const raw = localStorage.getItem(THEME_STORAGE_KEY);
+  if (raw === "light" || raw === "dark") return raw;
+  const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return systemDark ? "dark" : "light";
+}
+
+function setThemePref(theme) {
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
+}
+
+function applyTheme(theme) {
+  const normalized = theme === "dark" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", normalized);
+  const btn = document.getElementById("themeToggle");
+  if (btn) {
+    const isDark = normalized === "dark";
+    btn.setAttribute("aria-pressed", isDark ? "true" : "false");
+    btn.textContent = isDark ? "light" : "dark";
+    btn.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  }
 }
 
 function isMobileLayout() {
@@ -195,15 +218,15 @@ const dragBehavior = d3.drag()
   node.append("circle")
     .attr("r", d => d.r)
     .attr("fill", d => `url(#imgpat-${d.title.replace(/\s/g, "")})`)
-    .attr("stroke", "#000000")
-    .attr("stroke-width", '4px')
-    .attr("filter", "drop-shadow(0 1px 10px #f8b6f1)");
-    node.append("circle")
-      .attr("r", d => d.r-5)
-      .attr("fill", d => `none`)
-      .attr("stroke", "#ffffff")
-      .attr("stroke-width", '3px')
-      .attr("filter", "drop-shadow(0 4px 16px #8883)");
+    .attr("stroke", "var(--bubble-stroke)")
+    .attr("stroke-width", "4px")
+    .style("filter", "drop-shadow(0 2px 16px var(--bubble-glow))");
+  node.append("circle")
+    .attr("r", d => d.r - 5)
+    .attr("fill", "none")
+    .attr("stroke", "var(--bubble-highlight)")
+    .attr("stroke-width", "3px")
+    .style("filter", "drop-shadow(0 4px 22px var(--bubble-glow-soft))");
 
     node.each(function(d, i) {
       const g = d3.select(this);
@@ -223,10 +246,10 @@ const dragBehavior = d3.drag()
       g.append("path")
         .attr("d", describeArc(0, 0, r, -90, 270))
         .attr("fill", "none")
-        .attr("stroke", "#fff")
+        .attr("stroke", "var(--bubble-highlight)")
         .attr("stroke-opacity", 0.45)  // also make it a bit translucent
         .attr("stroke-width", textRadius) // thickness of the white strip
-        .attr("filter", "drop-shadow(1 2px 4px #aaa8)"); // optional shadow
+        .style("filter", "drop-shadow(1 2px 6px var(--bubble-glow-soft))"); // optional shadow
     
       // Add the text along the arc
       g.append("text")
@@ -240,7 +263,7 @@ const dragBehavior = d3.drag()
         .attr("startOffset", "50%") // center the text
         .style("text-anchor", "middle")
         .style("font-size", "1.0rem")
-        .style("fill", "#333")
+        .style("fill", "var(--bubble-text)")
         .style("font-family", "inherit")
         .text(d.title);
     });
@@ -339,7 +362,7 @@ const projects = shuffle([
     title: "Particle_Explorer",
     image: "assets/Images/stars.jpg",
     description: "Watch Life emerge or fade using particle interactions.",
-    link: "/ParticleExplorer/index.html"
+    link: "/ParticleExplorer/"
   },
   {
     title: "InnerLight",
@@ -357,37 +380,43 @@ const projects = shuffle([
     title: "Energy_Explorer",
     image: "assets/Images/eng.jpg",
     description: "Voxel space energy representations, with continuous particles under the hood.",
-    link: "/EnergyExplorer/index.html"
+    link: "/EnergyExplorer/"
   },
-   {
-    title: "GeoSpace",
-    image: "assets/Images/geoLife.jpg",
-    description: "A fully randomized partical sim with various indepedent particle groups...",
-    link: "/GeoSpace/index.html"
-  },
+  //  {
+  //   title: "GeoSpace",
+  //   image: "assets/Images/geoLife.jpg",
+  //   description: "A fully randomized partical sim with various indepedent particle groups...",
+  //   link: "/GeoSpace/"
+  // },
   {
     title: "Discrete_Fractals",
     image: "assets/Images/InnerLight.png",
     description: "Discrete fractals like the Mandelbrot, Julia, multibrot, etc are plotted using different shapes and convergence.",
-    link: "/Generic/index.html"
+    link: "/Generic/"
   },
   {
     title: "GameOfLife??",
     image: "assets/Images/gameOfLife0.webp",
     description: "The game of life is a cellular automata simulation. Different dense neighbourhood functions are used in this case.",
-    link: "/GameOfLife_aug/index.html"
+    link: "/GameOfLife_aug/"
+  },
+  {
+    title: "Interference",
+    image: "assets/Images/bacteria.png",
+    description: "A mess of interference circles that have bacteria like movement",
+    link: "/BacteriaVisualizer/"
   },
   {
     title: "Kakeya!!",
     image: "assets/Images/kakaya.png",
     description: "The collatz conjecture about sequences leverages Kakaya sets, which are sets made from line segments!",
-    link: "/kakeya/index.html"
+    link: "/kakeya/"
   },
   {
     title: "Voronoi_Point_Ani",
     image: "assets/Images/voro.png",
     description: "Voronoi diagrams that move and grow. Fractal like patterns emerge. ",
-    link: "/Voronoi/index.html"
+    link: "/Voronoi/"
   }
 
 ]);
@@ -411,6 +440,18 @@ const projects = shuffle([
 
 // });
 function initOnceStable() {
+  const themeToggle = document.getElementById("themeToggle");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme") || getThemePref();
+      const next = current === "dark" ? "light" : "dark";
+      setThemePref(next);
+      applyTheme(next);
+    });
+  }
+
+  applyTheme(getThemePref());
+
   const btn = document.getElementById("mobileModeToggle");
   if (btn) {
     btn.addEventListener("click", () => {
@@ -423,6 +464,9 @@ function initOnceStable() {
 
   renderHome();
 }
+
+// Paint with the saved theme before heavy assets finish loading.
+applyTheme(getThemePref());
 
 // wait for EVERYTHING that causes reflow
 Promise.all([

@@ -1,31 +1,62 @@
 
 :root {
   --color-accent: rgb(27, 26, 26);
-  --color-main:rgb(235, 235, 235);
+  --color-main: rgb(235, 235, 235);
+  --accent-highlight: #FF9FF5;
+  --bg-gradient:
+    linear-gradient(110deg, #f8b6f1, rgba(255, 255, 255, 0) 20.71%),
+    linear-gradient(306deg, #f8b6f1, var(--color-main) 50.71%);
+  --bubble-stroke: #000000;
+  --bubble-highlight: #ffffff;
+  --bubble-glow: #f8b6f1;
+  --bubble-glow-soft: #8883;
+  --bubble-text: #333333;
+}
+:root[data-theme="dark"] {
+  --color-main: #050505;
+  --color-accent: rgb(235, 235, 235);
+  --accent-highlight: #FF9FF5;
+  --bg-gradient:
+    radial-gradient(circle at 20% 20%, rgba(255, 241, 184, 0.12), transparent 35%),
+    radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.1), transparent 40%),
+    linear-gradient(180deg, #030303, #0d0d10);
+  --bubble-stroke: #000000;
+  --bubble-highlight: #ffffff;
+  --bubble-glow: #f8b6f1;
+  --bubble-glow-soft: #ffffff;
+  --bubble-text: #fff9d7;
 }
 body{
   padding: 0px ;
   margin: 0px ;
-  background: var(--color-main);
+  color: var(--color-accent);
+  background-color: var(--color-main);
+  background: var(--bg-gradient);
   overflow-x: hidden;
-  background: 
-              linear-gradient(110deg,#f8b6f1 , rgba(255,255,255, 0) 20.71%),
-              linear-gradient(306deg,#f8b6f1 , var(--color-main) 50.71%);
-              transition: .5s ;
+  transition: background .5s ease, color .3s ease;
 }
 #secondBar{
   position: absolute;
   width: 90%;
   left: 50%;
   height: 3px;
-  background-color: #FF9FF5;
+  background-color: var(--accent-highlight);
   top: 65px;
 }
-#mobileModeToggle{
+#headerActions{
   position: absolute;
-  top: 14px;
+  top: 10px;
   right: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
   z-index: 20;
+}
+#mobileModeToggle,
+#themeToggle{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 10px;
   border-radius: 999px;
   border: 2px solid var(--color-accent);
@@ -35,16 +66,21 @@ body{
   font-weight: 700;
   letter-spacing: 0.02em;
   box-shadow: 2px 2px var(--color-accent);
+  transition: box-shadow .2s ease, transform .2s ease, background-color .2s ease;
 }
-#mobileModeToggle[aria-pressed="true"]{
-  background: #FF9FF5;
+#mobileModeToggle[aria-pressed="true"],
+#themeToggle[aria-pressed="true"]{
+  background: var(--accent-highlight);
 }
-#mobileModeToggle:hover{
+#mobileModeToggle:hover,
+#themeToggle:hover{
   cursor: pointer;
   box-shadow: 3px 3px var(--color-accent);
+  transform: translate(-1px, -1px);
 }
-#mobileModeToggle:focus-visible{
-  outline: 3px solid #FF9FF5;
+#mobileModeToggle:focus-visible,
+#themeToggle:focus-visible{
+  outline: 3px solid var(--accent-highlight);
   outline-offset: 2px;
 }
 #jIcon{
@@ -65,30 +101,35 @@ body{
   margin-right: auto;
   background: none;
 }
-.settings{
-  font-size: large;
-  height: 3.2vh;
-  width: auto;
-  position: absolute;
-  margin: 1vh;
-  top: 0;
-  left:0;
-  color:var(--color-main);
-  border: 4px var(--color-main) dashed;
- 
-}
-.settings:hover{
-  border: 3px var(--color-main) solid;
-  border-style: dashed;
-}
-* {
+  .settings{
+    font-size: large;
+    height: 3.2vh;
+    width: auto;
+    position: absolute;
+    margin: 1vh;
+    top: 0;
+    left:0;
+    color:var(--color-accent);
+    border: 4px var(--color-accent) dashed;
+   
+  }
+  .settings:hover{
+    border: 3px var(--color-accent) solid;
+    border-style: dashed;
+  }
+  * {
     font-family: 'PT Sans Caption','Scheherazade','Kumbh Sans','Courier Prime','Alata', sans-serif !important;
+  }
+  a{
+    color: inherit;
   }
   #cool{
     padding-top: 20px;
     padding-left: 15px;
     height: 45px;
-    border-bottom: 3px solid black;
+    border-bottom: 3px solid var(--color-accent);
+    position: relative;
+    color: var(--color-accent);
     /* margin-bottom: 20px; */
     /* height: 45px;
     width: 100%;
@@ -174,7 +215,7 @@ body{
   .mainName{
     margin: 5px;
     border: 3px solid var(--color-accent);
-    box-shadow: -10px 0px 0px #FF9FF5;
+    box-shadow: -10px 0px 0px var(--accent-highlight);
     padding: 3px;
     font-size: 25px;
     padding: 4px;
@@ -206,7 +247,7 @@ body{
     border: 3px solid var(--color-accent);
     transition: box-shadow .5s;
     margin: 10px;
-    box-shadow: -3px -3px  #FF9FF5;
+    box-shadow: -3px -3px  var(--accent-highlight);
     background: var(--color-main);
   }
   #pinkBack{
@@ -214,7 +255,7 @@ body{
     /* left: 20%; */
     width: 100%;
     height: 100%;
-    background: linear-gradient(336deg,#f8b6f1 , var(--color-main) 55.71%);
+    background: linear-gradient(336deg,var(--accent-highlight) , var(--color-main) 55.71%);
   }
   
   .aboutUs:hover{
@@ -285,7 +326,7 @@ body{
   
   .desc {
     pointer-events: none;
-    color: #222;
+    color: var(--color-accent);
     font-weight: 500;
     line-height: 1.3;
   }

@@ -176,7 +176,7 @@ registerVisual("voronoiFluid", {
     {
       key: "strokeWidth",
       type: "number",
-      default: 5,
+      default: 0,
       min: 0,
       max: 6,
       step: 0.1,
