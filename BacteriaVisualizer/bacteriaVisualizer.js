@@ -1193,37 +1193,87 @@ registerVisual("bacteriaMinimal", {
   }
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-  runVisualApp({
-    visualId: "bacteriaMinimal",
-    mountEl: document.getElementById("vis"),
-    uiEl: document.getElementById("config"),
-    state: {
-      __xf: {
-        ui: {
-          preset: "kaleidoscope4",
-          splitMode: "screen",
-          splitCount: 1,
-          activeTile: "0",
-          applyToAll: false,
-          tileTargets: "0-3",
-          rotateDeg: 90,
-          zoomFactor: 1.1,
-          zoomCenter: { x: null, y: null },
-          translateVec: { x: 0, y: 0 },
-        },
-        stack: [
-          { kind: "split", count: 4 },
-          { kind: "flipY", targets: [0] },
-          { kind: "flipX", targets: [1] },
-          { kind: "flipY", targets: [1] },
-          { kind: "flipX", targets: [3] },
-          { kind: "zoom", targets: [0, 1, 2, 3], factor: 1.1, center: { x: null, y: null } },
-          { kind: "zoom", targets: [0, 1, 2, 3], factor: 1.1, center: { x: null, y: null } },
-        ],
-      },
+const INITIAL_STATE = {
+  __xf: {
+    ui: {
+      preset: "kaleidoscope4",
+      splitMode: "screen",
+      splitCount: 1,
+      activeTile: "0",
+      applyToAll: false,
+      tileTargets: "0-3",
+      rotateDeg: 90,
+      zoomFactor: 1.1,
+      zoomCenter: { x: null, y: null },
+      translateVec: { x: 0, y: 0 },
     },
+    stack: [
+      { kind: "split", count: 4 },
+      { kind: "flipY", targets: [0] },
+      { kind: "flipX", targets: [1] },
+      { kind: "flipY", targets: [1] },
+      { kind: "flipX", targets: [3] },
+      { kind: "zoom", targets: [0, 1, 2, 3], factor: 1.1, center: { x: null, y: null } },
+      { kind: "zoom", targets: [0, 1, 2, 3], factor: 1.1, center: { x: null, y: null } },
+    ],
+  },
+};
+
+let appHandle = null;
+
+function cloneSettings(settings) {
+  return settings ? JSON.parse(JSON.stringify(settings)) : undefined;
+}
+
+function startBacteriaApp(settings = INITIAL_STATE) {
+  const mountEl = document.getElementById("vis");
+  const uiEl = document.getElementById("config");
+
+  if (appHandle?.instance?.destroy) {
+    appHandle.instance.destroy();
+  }
+
+  uiEl.innerHTML = "";
+  mountEl.innerHTML = "";
+
+  appHandle = runVisualApp({
+    visualId: "bacteriaMinimal",
+    mountEl,
+    uiEl,
+    state: cloneSettings(settings ?? INITIAL_STATE),
   });
+}
+
+async function loadPresetSettings(fileName) {
+  try {
+    const res = await fetch(fileName, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const settings = await res.json();
+    startBacteriaApp(settings);
+  } catch (err) {
+    console.error(err);
+    alert(`Failed to load preset "${fileName}": ${err?.message || err}`);
+  }
+}
+
+function wirePresetButtons() {
+  const presets = [
+    { id: "preset-cluster", file: "clusterColor.json" },
+    { id: "preset-gradiant", file: "gradiant.json" },
+    { id: "preset-shimmer", file: "shimmer.json" },
+  ];
+
+  presets.forEach(({ id, file }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener("click", () => loadPresetSettings(file));
+  });
+  loadPresetSettings("clusterColor.json");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  startBacteriaApp();
+  wirePresetButtons();
 });
 
 function goTo(page) {

@@ -20,7 +20,15 @@
   <div id="infoBar">
     <button id="button-exit" onclick="goTo('../')">X</button>
     <button id="button-info">INFO</button>
+    <button id="button-toggle">&lt;&gt;</button>
     Interference
+  </div>
+
+  <div id="preset-bar">
+    <span>Load presets:</span>
+    <button id="preset-cluster" class="btn-inline">Cluster Color</button>
+    <button id="preset-gradiant" class="btn-inline">Gradiant</button>
+    <button id="preset-shimmer" class="btn-inline">Shimmer</button>
   </div>
 
   <div id="config"></div>
@@ -36,5 +44,13 @@
     const el = document.getElementById("config");
     el.style.display = (el.style.display === "none") ? "block" : "none";
   };
+  const toggleBtn = document.getElementById("button-toggle");
+  const presetBar = document.getElementById("preset-bar");
+  if (toggleBtn && presetBar) {
+    toggleBtn.onclick = () => {
+      const isHidden = presetBar.classList.toggle("show");
+      toggleBtn.setAttribute("aria-pressed", String(isHidden));
+    };
+  }
 </script>
 </html>
