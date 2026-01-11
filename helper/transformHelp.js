@@ -1,7 +1,7 @@
 /* --------------------------- Transforms tab --------------------------- */
 import { el, getByPath, setByPath, buildControl } from "./visualHelp.js";
 import { registerTab } from "./visualHelp.js";
-import { ensurePropOpsState, applyPropOpsToSubtree } from "./svgEditor.js";
+import { ensurePropOpsState, applyPropOpsToSubtree, ensureScriptOpsState, applyScriptOpsToSubtree } from "./svgEditor.js";
 let isFirst = false;
 /* ------------------------ helpers ------------------------ */
 function resolveCenterAxis(val, size, fallback) {
@@ -293,6 +293,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "preset",
         type: "select",
         default: "",
+        category: "Presets",
         options: ["", "kaleidoscope4"],
         description: "Choose a transform preset, then press Apply preset.",
       },
@@ -301,6 +302,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "split mode",
         type: "select",
         default: "screen",
+        category: "Split",
         options: ["screen", "fit"],
         description: 'screen = uniform downscale; fit = fill viewport per tile (e.g. split(2) => half width, full height).',
       },
@@ -309,6 +311,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "split copies",
         type: "number",
         default: 1,
+        category: "Split",
         min: 1,
         max: 64,
         step: 1,
@@ -336,6 +339,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "tile targets",
         type: "text",
         default: "0",
+        category: "Targets",
         description: "Examples: all | 0 | 0,2,5 | 1-4",
       },
 
@@ -344,6 +348,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "rotate (deg)",
         type: "number",
         default: 90,
+        category: "Rotate/Zoom",
         min: -180,
         max: 180,
         step: 1,
@@ -354,6 +359,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "zoom factor",
         type: "number",
         default: 1.25,
+        category: "Rotate/Zoom",
         min: 0.1,
         max: 20,
         step: 0.05,
@@ -364,6 +370,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "3D plane count",
         type: "number",
         default: 3,
+        category: "3D Planes",
         min: 0,
         max: 32,
         step: 1,
@@ -374,6 +381,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "plane base scale",
         type: "number",
         default: 1,
+        category: "3D Planes",
         min: 0.01,
         max: 10,
         step: 0.01,
@@ -383,6 +391,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "plane scale step",
         type: "number",
         default: -0.12,
+        category: "3D Planes",
         min: -5,
         max: 5,
         step: 0.01,
@@ -393,6 +402,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "plane opacity",
         type: "number",
         default: 0.7,
+        category: "3D Planes",
         min: 0,
         max: 1,
         step: 0.05,
@@ -402,6 +412,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         label: "opacity falloff",
         type: "number",
         default: 0.12,
+        category: "3D Planes",
         min: 0,
         max: 1,
         step: 0.02,
@@ -410,6 +421,19 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
     ];
 
     const controls = document.createElement("div");
+    const groups = new Map();
+    const getGroup = (name) => {
+      if (!groups.has(name)) {
+        const wrap = el("details", { className: "vr-paramGroup", open: true });
+        const summary = el("summary", { className: "vr-paramGroupTitle", textContent: name });
+        const body = el("div", { className: "vr-paramGroupBody" });
+        wrap.appendChild(summary);
+        wrap.appendChild(body);
+        groups.set(name, { wrap, body });
+      }
+      return groups.get(name);
+    };
+
     for (const p of xfParams) {
       const node = buildControl({
         param: p,
@@ -428,13 +452,13 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
         }
       }
 
-      controls.appendChild(node);
+      const group = getGroup(p.category || "General");
+      group.body.appendChild(node);
     }
 
-    controls.appendChild(buildMatrixControl());
+    getGroup("Matrix").body.appendChild(buildMatrixControl());
 
-    // NEW UI: zoom center + translate vec (without needing buildControl support)
-    controls.appendChild(
+    getGroup("Rotate/Zoom").body.appendChild(
       buildVector2Control({
         key: "__xf.ui.zoomCenter",
         label: "zoom center",
@@ -444,7 +468,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
       })
     );
 
-    controls.appendChild(
+    getGroup("Translate").body.appendChild(
       buildVector2Control({
         key: "__xf.ui.translateVec",
         label: "translate (x,y)",
@@ -454,7 +478,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
       })
     );
 
-    controls.appendChild(
+    getGroup("3D Planes").body.appendChild(
       buildVector2Control({
         key: "__xf.ui.planeCenter",
         label: "plane center",
@@ -464,7 +488,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
       })
     );
 
-    controls.appendChild(
+    getGroup("3D Planes").body.appendChild(
       buildVector2Control({
         key: "__xf.ui.planeOffset",
         label: "plane offset per depth",
@@ -474,6 +498,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
       })
     );
 
+    for (const { wrap } of groups.values()) controls.appendChild(wrap);
     root.appendChild(controls);
 
     const btnRow = document.createElement("div");
@@ -679,6 +704,7 @@ function combineTransforms(...parts) {
 export function initTransformRuntime({ mountEl, state }) {
   ensureTransformState(state);
   ensurePropOpsState(state);
+  ensureScriptOpsState(state);
 
   const svg = mountEl?.querySelector?.("svg");
   if (!(svg instanceof SVGSVGElement)) {
@@ -735,6 +761,8 @@ export function initTransformRuntime({ mountEl, state }) {
     const stack = state.__xf.stack || [];
     const propStack = state.__propOps?.stack || [];
     const hasProps = Array.isArray(propStack) && propStack.length > 0;
+    const scriptStack = state.__scriptOps?.stack || [];
+    const hasScripts = Array.isArray(scriptStack) && scriptStack.length > 0;
 
     const splitCount = getEffectiveSplitCount(stack);
     const { x, y, w, h } = getSvgViewBox(svg);
@@ -751,7 +779,7 @@ export function initTransformRuntime({ mountEl, state }) {
     });
 
     // Nothing to do at all? true reset.
-    if ((!stack || stack.length === 0) && !hasProps) {
+    if ((!stack || stack.length === 0) && !hasProps && !hasScripts) {
       resetToInitial();
       return;
     }
@@ -771,6 +799,7 @@ export function initTransformRuntime({ mountEl, state }) {
       }
 
       if (hasProps) applyPropOpsToSubtree(sourceG, propStack);
+      if (hasScripts) applyScriptOpsToSubtree(sourceG, scriptStack, { svg, state, mountEl });
       return;
     }
 
@@ -840,6 +869,7 @@ export function initTransformRuntime({ mountEl, state }) {
           tagCloneForMode(cloned, tile, localIdx, N, plane, planeCount, globalIdx);
           dedupeIdsInSubtree(cloned, `__xf_${tile}_${plane}_${localIdx}`);
           if (hasProps) applyPropOpsToSubtree(cloned, propStack);
+          if (hasScripts) applyScriptOpsToSubtree(cloned, scriptStack, { svg, state, mountEl });
           gPlane.appendChild(cloned);
           localIdx++;
         }

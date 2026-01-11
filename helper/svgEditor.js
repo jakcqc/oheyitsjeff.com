@@ -1,6 +1,7 @@
 /* --------------------------- Property Ops tab --------------------------- */
 import { getByPath, setByPath } from "./visualHelp.js"; // you already use setByPath in transforms :contentReference[oaicite:1]{index=1}
 import { registerTab } from "./visualHelp.js";
+import { scalePolygonsInSubtree, scaleCirclesInSubtree, scaleRectsInSubtree, scalePathsInSubtree, convertShapesInSubtree } from "./scriptOpsUtils.js";
 
 export function ensurePropOpsState(state) {
   if (!state.__propOps || typeof state.__propOps !== "object") state.__propOps = {};
@@ -17,6 +18,49 @@ export function ensurePropOpsState(state) {
   }
   if (state.__propOps.ui.showDocs == null) state.__propOps.ui.showDocs = true;
   if (!Array.isArray(state.__propOps.stack)) state.__propOps.stack = [];
+}
+
+/* ---------------------------- Script Ops tab ---------------------------- */
+export function ensureScriptOpsState(state) {
+  if (!state.__scriptOps || typeof state.__scriptOps !== "object") state.__scriptOps = {};
+  if (!state.__scriptOps.ui || typeof state.__scriptOps.ui !== "object") {
+    state.__scriptOps.ui = {
+      codeText: `// ctx.root is the <g> subtree being processed
+// ctx.svg is the owning <svg>
+// ctx.create(tag) creates an SVG element
+//
+// Example: circle -> 6-gon (polygon)
+// for (const c of ctx.root.querySelectorAll("circle")) {
+//   const cx = Number(c.getAttribute("cx") || 0);
+//   const cy = Number(c.getAttribute("cy") || 0);
+//   const r = Number(c.getAttribute("r") || 0);
+//   const n = 6;
+//   const pts = Array.from({length:n}, (_,i) => {
+//     const a = (Math.PI*2*i)/n;
+//     return [cx + r*Math.cos(a), cy + r*Math.sin(a)].join(",");
+//   }).join(" ");
+//   const p = ctx.create("polygon");
+//   p.setAttribute("points", pts);
+//   for (const {name,value} of Array.from(c.attributes)) {
+//     if (name === "cx" || name === "cy" || name === "r") continue;
+//     p.setAttribute(name, value);
+//   }
+//   c.replaceWith(p);
+// }`,
+      fileName: "",
+      selectedCacheKey: "",
+      autoRunSelected: false,
+      lastPreview: "",
+      showDocs: true,
+    };
+  }
+  if (state.__scriptOps.ui.showDocs == null) state.__scriptOps.ui.showDocs = true;
+  if (state.__scriptOps.ui.autoRunSelected == null) state.__scriptOps.ui.autoRunSelected = false;
+  if (state.__scriptOps.ui.selectedCacheKey == null) state.__scriptOps.ui.selectedCacheKey = "";
+  if (!Array.isArray(state.__scriptOps.stack)) state.__scriptOps.stack = [];
+  if (!state.__scriptOps.cache || typeof state.__scriptOps.cache !== "object") {
+    state.__scriptOps.cache = {}; // name -> { code, updatedAt }
+  }
 }
 
 const PROP_OPS_DOCS_TEXT = `Property Ops Rules
@@ -66,6 +110,32 @@ Apply patches:
   { "style": { "opacity": "0.5", "stroke": null } }
 - "$delete": true removes the element:
   { "$delete": true }`;
+
+const SCRIPT_OPS_DOCS_TEXT = `Script Ops (JS)
+
+Lets you run custom JavaScript against the live SVG DOM.
+
+Rules live at: state.__scriptOps.stack
+UI text lives at: state.__scriptOps.ui.codeText
+
+Each saved script is run during rebuild, after transforms + PropOps, on each cloned subtree.
+
+Script entry shape:
+{
+  "kind": "script",
+  "code": "...javascript..."
+}
+
+Script context object (ctx):
+- ctx.root: the SVG subtree root element being processed (usually a <g>)
+- ctx.svg: the owning <svg> element
+- ctx.state: the visual state object (shared with other tabs)
+- ctx.mountEl: the mount element used by the editor
+- ctx.create(tagName): creates an SVG element in the correct namespace
+
+Notes:
+- This runs with full page privileges (it is your code).
+- To change element types (circle->polygon, rect->path, etc), create a new element and replaceWith(...).`;
 
 function isHexColor(s) {
   return typeof s === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s.trim());
@@ -300,6 +370,57 @@ export function applyPropOpsToSubtree(rootEl, propStack) {
   }
 }
 
+export function applyScriptOpsToSubtree(rootEl, scriptStack, { svg, state, mountEl } = {}) {
+  if (!rootEl || rootEl.nodeType !== 1) return;
+
+  const stack = Array.isArray(scriptStack) ? scriptStack : [];
+  const ui = state?.__scriptOps?.ui || {};
+  const cache = state?.__scriptOps?.cache || {};
+
+  /** @type {Array<{kind:string, code:string}>} */
+  const extra = [];
+  if (ui.autoRunSelected && ui.selectedCacheKey && cache[ui.selectedCacheKey]?.code) {
+    extra.push({ kind: "script", code: String(cache[ui.selectedCacheKey].code) });
+  }
+
+  const effective = extra.length ? [...stack, ...extra] : stack;
+  if (!effective.length) return;
+
+  const svgEl =
+    svg ||
+    (rootEl.tagName && rootEl.tagName.toLowerCase() === "svg" ? rootEl : rootEl.closest?.("svg")) ||
+    null;
+
+  const create = (tagName) => {
+    const ns = svgEl?.namespaceURI || "http://www.w3.org/2000/svg";
+    return document.createElementNS(ns, String(tagName));
+  };
+
+  const ctx = {
+    root: rootEl,
+    svg: svgEl,
+    state,
+    mountEl,
+    create,
+    utils: {
+      scalePolygonsInSubtree: (opts = {}) => scalePolygonsInSubtree({ root: rootEl, svg: svgEl, state, mountEl, create }, opts),
+      scaleCirclesInSubtree: (opts = {}) => scaleCirclesInSubtree({ root: rootEl, svg: svgEl, state, mountEl, create }, opts),
+      scaleRectsInSubtree: (opts = {}) => scaleRectsInSubtree({ root: rootEl, svg: svgEl, state, mountEl, create }, opts),
+      scalePathsInSubtree: (opts = {}) => scalePathsInSubtree({ root: rootEl, svg: svgEl, state, mountEl, create }, opts),
+      convertShapesInSubtree: (opts = {}) => convertShapesInSubtree({ root: rootEl, svg: svgEl, state, mountEl, create }, opts),
+    },
+  };
+
+  for (const op of effective) {
+    if (!op || op.kind !== "script") continue;
+    const code = String(op.code || "");
+    if (!code.trim()) continue;
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("ctx", code);
+    fn(ctx);
+  }
+}
+
 
 
 export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
@@ -364,13 +485,17 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
 
     const btnRow = document.createElement("div");
     btnRow.style.display = "flex";
+    btnRow.style.flexWrap = "wrap";
     btnRow.style.gap = "8px";
     btnRow.style.marginTop = "8px";
+    btnRow.style.maxWidth = "100%";
 
     const mkBtn = (label, onClick) => {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
+      b.style.flex = "1 1 auto";
+      b.style.maxWidth = "100%";
       b.onclick = onClick;
       return b;
     };
@@ -467,5 +592,295 @@ if (svg) {
 export function registerPropOpsTab() {
   registerTab("propOps", ({ mountEl, state, xfRuntime }) =>
     buildPropOpsPanel({ mountEl, state, xfRuntime })
+  );
+}
+
+export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
+  ensureScriptOpsState(state);
+
+  const root = document.createElement("div");
+  root.className = "scriptops-panel";
+
+  const render = () => {
+    root.innerHTML = "";
+
+    const mkDocs = () => {
+      const wrap = document.createElement("details");
+      wrap.open = !!getByPath(state, "__scriptOps.ui.showDocs");
+
+      const summary = document.createElement("summary");
+      summary.textContent = "Script Ops (docs)";
+      wrap.appendChild(summary);
+
+      wrap.addEventListener("toggle", () => {
+        setByPath(state, "__scriptOps.ui.showDocs", !!wrap.open);
+      });
+
+      const body = document.createElement("pre");
+      body.textContent = SCRIPT_OPS_DOCS_TEXT;
+      body.style.whiteSpace = "pre-wrap";
+      body.style.marginTop = "8px";
+      wrap.appendChild(body);
+
+      return wrap;
+    };
+
+    root.appendChild(mkDocs());
+
+    const cacheKeys = Object.keys(state.__scriptOps.cache || {}).sort((a, b) => a.localeCompare(b));
+    const selectedKey = String(getByPath(state, "__scriptOps.ui.selectedCacheKey") || "");
+
+    const cacheRow = document.createElement("div");
+    cacheRow.style.display = "flex";
+    cacheRow.style.gap = "8px";
+    cacheRow.style.alignItems = "center";
+    cacheRow.style.marginTop = "8px";
+
+    const sel = document.createElement("select");
+    sel.style.maxWidth = "420px";
+    const optEmpty = document.createElement("option");
+    optEmpty.value = "";
+    optEmpty.textContent = cacheKeys.length ? "(select cached script)" : "(no cached scripts)";
+    sel.appendChild(optEmpty);
+    for (const k of cacheKeys) {
+      const o = document.createElement("option");
+      o.value = k;
+      o.textContent = k;
+      sel.appendChild(o);
+    }
+    sel.value = cacheKeys.includes(selectedKey) ? selectedKey : "";
+    sel.onchange = () => {
+      setByPath(state, "__scriptOps.ui.selectedCacheKey", sel.value);
+      render();
+    };
+
+    const autoLab = document.createElement("label");
+    autoLab.style.display = "flex";
+    autoLab.style.alignItems = "center";
+    autoLab.style.gap = "6px";
+    const autoCb = document.createElement("input");
+    autoCb.type = "checkbox";
+    autoCb.checked = !!getByPath(state, "__scriptOps.ui.autoRunSelected");
+    autoCb.onchange = () => {
+      setByPath(state, "__scriptOps.ui.autoRunSelected", !!autoCb.checked);
+      xfRuntime?.rebuildNow?.();
+      render();
+    };
+    const autoTxt = document.createElement("span");
+    autoTxt.textContent = "auto-run selected";
+    autoLab.appendChild(autoCb);
+    autoLab.appendChild(autoTxt);
+
+    cacheRow.appendChild(sel);
+    cacheRow.appendChild(autoLab);
+    root.appendChild(cacheRow);
+
+    const fileRow = document.createElement("div");
+    fileRow.style.display = "flex";
+    fileRow.style.gap = "8px";
+    fileRow.style.alignItems = "center";
+    fileRow.style.marginTop = "8px";
+
+    const pickBtn = document.createElement("button");
+    pickBtn.type = "button";
+    pickBtn.textContent = "load .js file";
+
+    const fileLab = document.createElement("div");
+    fileLab.style.opacity = "0.85";
+    fileLab.textContent = String(getByPath(state, "__scriptOps.ui.fileName") || "");
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".js,text/javascript,application/javascript";
+    input.style.display = "none";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      setByPath(state, "__scriptOps.ui.codeText", text);
+      setByPath(state, "__scriptOps.ui.fileName", file.name);
+
+      // Cache by filename (overwrite).
+      state.__scriptOps.cache[file.name] = { code: text, updatedAt: Date.now() };
+      setByPath(state, "__scriptOps.ui.selectedCacheKey", file.name);
+      render();
+    };
+
+    pickBtn.onclick = () => input.click();
+    fileRow.appendChild(pickBtn);
+    fileRow.appendChild(fileLab);
+    fileRow.appendChild(input);
+    root.appendChild(fileRow);
+
+    const divider = document.createElement("div");
+    divider.style.borderTop = "3px solid rgba(139, 139, 139, 1)";
+    divider.style.margin = "10px 0 8px";
+    root.appendChild(divider);
+
+    const ta = document.createElement("textarea");
+    ta.value = String(getByPath(state, "__scriptOps.ui.codeText") ?? "");
+    ta.rows = 14;
+    ta.style.width = "100%";
+    ta.addEventListener("input", () => {
+      setByPath(state, "__scriptOps.ui.codeText", ta.value);
+    });
+    root.appendChild(ta);
+
+    const btnRow = document.createElement("div");
+    btnRow.style.display = "flex";
+    btnRow.style.flexWrap = "wrap";
+    btnRow.style.gap = "8px";
+    btnRow.style.marginTop = "8px";
+    btnRow.style.maxWidth = "100%";
+
+    const mkBtn = (label, onClick) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.style.flex = "1 1 auto";
+      b.style.maxWidth = "100%";
+      b.onclick = onClick;
+      return b;
+    };
+
+    const runCodeOnce = (code) => {
+      const svg = mountEl.firstElementChild;
+      if (!svg) throw new Error("no SVG mounted");
+      applyScriptOpsToSubtree(svg, [{ kind: "script", code }], { svg, state, mountEl });
+    };
+
+    btnRow.appendChild(
+      mkBtn("load selected", () => {
+        const key = String(getByPath(state, "__scriptOps.ui.selectedCacheKey") || "");
+        const entry = key ? state.__scriptOps.cache?.[key] : null;
+        if (!entry?.code) {
+          setByPath(state, "__scriptOps.ui.lastPreview", "no cached script selected");
+          render();
+          return;
+        }
+        setByPath(state, "__scriptOps.ui.codeText", String(entry.code));
+        setByPath(state, "__scriptOps.ui.fileName", key);
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("run selected", () => {
+        try {
+          const key = String(getByPath(state, "__scriptOps.ui.selectedCacheKey") || "");
+          const entry = key ? state.__scriptOps.cache?.[key] : null;
+          if (!entry?.code) throw new Error("no cached script selected");
+          runCodeOnce(String(entry.code));
+          setByPath(state, "__scriptOps.ui.lastPreview", "ok");
+        } catch (e) {
+          setByPath(state, "__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
+        }
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("save to cache", () => {
+        const code = String(getByPath(state, "__scriptOps.ui.codeText") ?? "");
+        if (!code.trim()) {
+          setByPath(state, "__scriptOps.ui.lastPreview", "script is empty");
+          render();
+          return;
+        }
+        const defName = String(getByPath(state, "__scriptOps.ui.fileName") || "").trim() || "script.js";
+        const name = window.prompt("Cache name", defName);
+        if (!name) return;
+        state.__scriptOps.cache[name] = { code, updatedAt: Date.now() };
+        setByPath(state, "__scriptOps.ui.selectedCacheKey", name);
+        setByPath(state, "__scriptOps.ui.fileName", name);
+        setByPath(state, "__scriptOps.ui.lastPreview", "cached");
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("delete selected", () => {
+        const key = String(getByPath(state, "__scriptOps.ui.selectedCacheKey") || "");
+        if (!key) return;
+        const ok = window.confirm(`Delete cached script "${key}"?`);
+        if (!ok) return;
+        delete state.__scriptOps.cache[key];
+        if (String(getByPath(state, "__scriptOps.ui.fileName") || "") === key) {
+          setByPath(state, "__scriptOps.ui.fileName", "");
+        }
+        setByPath(state, "__scriptOps.ui.selectedCacheKey", "");
+        setByPath(state, "__scriptOps.ui.lastPreview", "deleted");
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("run once", () => {
+        try {
+          const code = String(getByPath(state, "__scriptOps.ui.codeText") ?? "");
+          runCodeOnce(code);
+          setByPath(state, "__scriptOps.ui.lastPreview", "ok");
+        } catch (e) {
+          setByPath(state, "__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
+        }
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("save as rule", () => {
+        try {
+          const code = String(getByPath(state, "__scriptOps.ui.codeText") ?? "");
+          if (!code.trim()) throw new Error("script is empty");
+          state.__scriptOps.stack.push({ kind: "script", code });
+          xfRuntime?.rebuildNow?.();
+          const svg = mountEl.firstElementChild;
+          if (svg) applyScriptOpsToSubtree(svg, state.__scriptOps.stack, { svg, state, mountEl });
+          setByPath(state, "__scriptOps.ui.lastPreview", "saved");
+        } catch (e) {
+          setByPath(state, "__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
+        }
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("undo", () => {
+        state.__scriptOps.stack.pop();
+        xfRuntime?.rebuildNow?.();
+        const svg = mountEl.firstElementChild;
+        if (svg) applyScriptOpsToSubtree(svg, state.__scriptOps.stack, { svg, state, mountEl });
+        render();
+      })
+    );
+
+    btnRow.appendChild(
+      mkBtn("reset", () => {
+        state.__scriptOps.stack.length = 0;
+        xfRuntime?.rebuildNow?.();
+        const svg = mountEl.firstElementChild;
+        if (svg) applyScriptOpsToSubtree(svg, state.__scriptOps.stack, { svg, state, mountEl });
+        render();
+      })
+    );
+
+    root.appendChild(btnRow);
+
+    const pre = document.createElement("pre");
+    pre.style.marginTop = "8px";
+    pre.textContent =
+      `rules: ${state.__scriptOps.stack.length}\n` +
+      String(getByPath(state, "__scriptOps.ui.lastPreview") ?? "");
+    root.appendChild(pre);
+  };
+
+  render();
+  return root;
+}
+
+export function registerScriptOpsTab() {
+  registerTab("scriptOps", ({ mountEl, state, xfRuntime }) =>
+    buildScriptOpsPanel({ mountEl, state, xfRuntime })
   );
 }

@@ -12,6 +12,7 @@ registerVisual("mandelTilingZoomable", {
       type: "button",
       key: "resetView",
       label: "Reset View",
+      category: "View",
       onClick: ({ state, setByPath }) => {
         setByPath(state, "view.centerRe", -0.5);
         setByPath(state, "view.centerIm", 0);
@@ -22,6 +23,7 @@ registerVisual("mandelTilingZoomable", {
       key: "fractal",
       type: "select",
       default: "mandelbrot",
+      category: "Fractal",
       options: [
         "mandelbrot",
         "julia",
@@ -35,6 +37,7 @@ registerVisual("mandelTilingZoomable", {
       key: "maxIterBase",
       type: "number",
       default: 50,
+      category: "Fractal",
       min: 10,
       max: 5000,
       step: 10,
@@ -44,6 +47,7 @@ registerVisual("mandelTilingZoomable", {
       key: "minCellPx",
       type: "number",
       default: 6,
+      category: "Tiling",
       min: 1,
       max: 64,
       step: 1,
@@ -53,6 +57,7 @@ registerVisual("mandelTilingZoomable", {
       key: "startCellPx",
       type: "number",
       default: 180,
+      category: "Tiling",
       min: 32,
       max: 800,
       step: 10,
@@ -62,6 +67,7 @@ registerVisual("mandelTilingZoomable", {
       key: "showBoundaryPixels",
       type: "boolean",
       default: true,
+      category: "Tiling",
       description: "Render boundary cells at minimum resolution for detail near edges."
     },
 
@@ -69,6 +75,7 @@ registerVisual("mandelTilingZoomable", {
       key: "shapeType",
       type: "select",
       default: "circle",
+      category: "Rendering",
       options: ["square", "circle", "ngon"],
       description: "Geometric primitive used to render each fractal cell."
     },
@@ -77,6 +84,7 @@ registerVisual("mandelTilingZoomable", {
       key: "nSides",
       type: "number",
       default: 6,
+      category: "Rendering",
       min: 3,
       max: 12,
       step: 1,
@@ -86,6 +94,7 @@ registerVisual("mandelTilingZoomable", {
       key: "maxCircles",
       type: "number",
       default: 40000,
+      category: "Rendering",
       min: 100,
       max: 200000,
       step: 200,
@@ -96,6 +105,7 @@ registerVisual("mandelTilingZoomable", {
       key: "view.centerRe",
       type: "number",
       default: -0.5,
+      category: "View",
       min: -3,
       max: 3,
       step: 0.001,
@@ -105,6 +115,7 @@ registerVisual("mandelTilingZoomable", {
       key: "view.centerIm",
       type: "number",
       default: 0.0,
+      category: "View",
       min: -3,
       max: 3,
       step: 0.001,
@@ -114,6 +125,7 @@ registerVisual("mandelTilingZoomable", {
       key: "view.spanRe",
       type: "number",
       default: 2.5,
+      category: "View",
       min: 0.00001,
       max: 6,
       step: 0.001,
@@ -124,6 +136,7 @@ registerVisual("mandelTilingZoomable", {
       key: "julia.Re",
       type: "number",
       default: -0.8,
+      category: "Julia",
       min: -1.5,
       max: 1.5,
       step: 0.001,
@@ -133,6 +146,7 @@ registerVisual("mandelTilingZoomable", {
       key: "julia.Im",
       type: "number",
       default: 0.156,
+      category: "Julia",
       min: -1.5,
       max: 1.5,
       step: 0.001,
@@ -143,6 +157,7 @@ registerVisual("mandelTilingZoomable", {
       key: "multibrot.Power",
       type: "number",
       default: 3,
+      category: "Multibrot",
       min: 2,
       max: 8,
       step: 0.25,
@@ -152,14 +167,13 @@ registerVisual("mandelTilingZoomable", {
 
 
   create({ mountEl }, state) {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
     const escapeR = 2;
 
     const svg = d3.select(mountEl)
       .append("svg")
-      .attr("width", width)
-      .attr("height", height)
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .style("display", "block")
       .style("background", "white");
 
     const g = svg.append("g");
@@ -242,8 +256,17 @@ registerVisual("mandelTilingZoomable", {
   // function setFractal(name) {
   //   activeIter = FRACTAL_ITERS[name] || FRACTAL_ITERS.mandelbrot;
   // }
+    let lastSize = { width: 1, height: 1 };
+    const size = () => {
+      const rect = mountEl.getBoundingClientRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
+      return { width, height };
+    };
+
     function boundsFromView() {
       const { centerRe, centerIm, spanRe } = state.view;
+      const { width, height } = lastSize;
       const reMin = centerRe - spanRe / 2;
       const reMax = centerRe + spanRe / 2;
       const imSpan = spanRe * (height / width);
@@ -256,6 +279,7 @@ registerVisual("mandelTilingZoomable", {
     }
 
     function pxToComplex(x, y) {
+      const { width, height } = lastSize;
       const { reMin, reMax, imMin, imMax } = boundsFromView();
       return [
         reMin + (x / width) * (reMax - reMin),
@@ -321,6 +345,11 @@ registerVisual("mandelTilingZoomable", {
     function render({ fast = false } = {}) {
       g.selectAll("*").remove();
     activeIter = FRACTAL_ITERS[state.fractal];
+      const nextSize = size();
+      lastSize = nextSize;
+      const width = lastSize.width;
+      const height = lastSize.height;
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
 
       const zoomLevel = 2.5 / state.view.spanRe;
       const maxIter = Math.round(
@@ -388,8 +417,16 @@ registerVisual("mandelTilingZoomable", {
       animateZoomTo(cr, ci, event.deltaY < 0 ? 1.6 : 1 / 1.6, 450);
     }, { passive: false });
 
+    const ro = new ResizeObserver(() => render());
+    ro.observe(mountEl);
     render();
 
-    return { render, destroy: () => svg.remove() };
+    return {
+      render,
+      destroy: () => {
+        ro.disconnect();
+        svg.remove();
+      }
+    };
   }
 });

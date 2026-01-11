@@ -557,58 +557,61 @@ registerVisual("bacteriaMinimal", {
   title: "Bacteria Outline",
   description: "Multiple ring-shaped bacteria with controllable outline halos, trails, and ring sizes.",
   params: [
-    { key: "running", type: "boolean", default: true, description: "Start/pause animation." },
-    { key: "tickMs", type: "number", default: 40, min: 16, max: 200, step: 1, description: "Frame interval (ms)." },
-    { key: "speed", type: "number", default: 1.35, min: 0.5, max: 12, step: 0.1, description: "Movement speed of each cell." },
-    { key: "outlinePad", type: "number", default: 0, min: 0, max: 40, step: 1, description: "Padding between cluster and outline." },
-    { key: "outlineLag", type: "number", default: 0.36, min: 0.01, max: 0.6, step: 0.01, description: "How much the outline lags/smooths behind movement." },
-    { key: "outlineScale", type: "number", default: 1.5, min: 0.2, max: 3, step: 0.05, description: "Scale multiplier applied to base outline size." },
-    { key: "outlineShape", type: "select", default: "ellipse", options: ["auto", "ellipse", "rect"], description: "Force outline shape or let formation decide." },
-    { key: "outlineStrokeWidth", type: "number", default: 0.05, min: 0.0, max: 8, step: 0.1, description: "Stroke width applied to outlines." },
-    { key: "lineColor", type: "text", default: "#000000", description: "Stroke color for outlines, dots, and overlays." },
-    { key: "backgroundColor", type: "text", default: "#ffffff", description: "Canvas background color (CSS color)." },
-    { key: "dotStrokeWidth", type: "number", default: 0.05, min: 0.0, max: 8, step: 0.1, description: "Stroke width for cluster dots." },
-    { key: "collisionPush", type: "number", default: 0, min: 0, max: 2, step: 0.05, description: "Strength of collision separation between cells." },
-    { key: "showMergePaths", type: "boolean", default: false, description: "Draw merged contact paths where circles touch." },
-    { key: "mergeContactRatio", type: "number", default: 0.97, min: 0.8, max: 1.1, step: 0.01, description: "Contact tightness for merges (ratio of radii sum)." },
-    { key: "mergeMaxPairs", type: "number", default: 72, min: 1, max: 500, step: 1, description: "Maximum merge overlays to display simultaneously." },
-    { key: "mergeSmoothing", type: "number", default: 0.99, min: 0, max: 0.99, step: 0.01, description: "Smoothing factor for merge appearance/disappearance (higher = faster response)." },
-    { key: "mergeFalloff", type: "number", default: 0, min: 0, max: 0.99, step: 0.01, description: "Soft falloff band and decay rate for merges." },
-    { key: "mergeEffectStyle", type: "select", default: "ring", options: ["ring", "blend", "solid"], description: "Merge color style: match halo color, blend outline colors, or force a solid fill." },
-    { key: "mergeEffectColor", type: "text", default: "#aa0000", description: "Fill/stroke color when merge effect style is set to solid." },
-    { key: "ringCount", type: "number", default: 40, min: 1, max: 50, step: 1, description: "How many ring bacteria to spawn." },
-    { key: "fitCells", type: "boolean", default: true, description: "Clamp spawned cells to fit the viewport area." },
-    { key: "fitFillRatio", type: "number", default: 0.35, min: 0.05, max: 1, step: 0.01, description: "Max fill ratio of viewport area when clamping cells." },
-    { key: "ringMinRadius", type: "number", default: 10, min: 1, max: 500, step: 1, description: "Minimum radius for randomly sized rings." },
-    { key: "ringMaxRadius", type: "number", default: 88, min: 1, max: 500, step: 1, description: "Maximum radius for randomly sized rings." },
-    { key: "showMultiRing", type: "boolean", default: true, description: "Render multi-ring halo component." },
-    { key: "multiRingCount", type: "number", default: 20, min: 0, max: 50, step: 1, description: "How many halo rings to draw." },
-    { key: "multiRingStart", type: "number", default: 0.7, min: 0.4, max: 3, step: 0.05, description: "Scale multiplier for the innermost halo ring." },
-    { key: "multiRingGap", type: "number", default: 14.5, min: 0, max: 200, step: 0.5, description: "Additional radius (px) added per successive halo ring." },
-    { key: "multiRingStrokeWidth", type: "number", default: 7.75, min: 0.2, max: 10, step: 0.05, description: "Stroke width for halo rings." },
-    { key: "multiRingOpacity", type: "number", default: 0.26, min: 0, max: 1, step: 0.01, description: "Opacity of the inner-most halo ring." },
-    { key: "multiRingFade", type: "number", default: 0.01, min: 0, max: 0.5, step: 0.01, description: "Opacity falloff per halo ring." },
-    { key: "multiRingColor", type: "text", default: "#5a4feeff", description: "Stroke color for halo rings." },
-    { key: "ringColorMode", type: "select", default: "uniform", options: ["uniform", "radius", "random"], description: "Halo color mode: uniform, size-based gradient, or random palette." },
-    { key: "ringColorA", type: "text", default: "#ffffff", description: "Gradient start color (used in radius mode)." },
-    { key: "ringColorB", type: "text", default: "#000000", description: "Gradient end color (used in radius mode)." },
-    { key: "multiRingPalette", type: "text", default: "#aa0000,#0088ff,#00aa44,#ffa500", description: "Comma-separated palette used when color mode is random." },
-    { key: "showCircleRect", type: "boolean", default: false, description: "Render circle overlay component." },
-    { key: "circleStrokeWidth", type: "number", default: 0.2, min: 0.05, max: 5, step: 0.05, description: "Stroke width for the circle overlay." },
-    { key: "circleRectColor", type: "text", default: "#000000", description: "Stroke color for circle overlays." },
-    { key: "showTrail", type: "boolean", default: false, description: "Render trailing filled circles." },
-    { key: "trailEveryN", type: "number", default: 1, min: 1, max: 10, step: 1, description: "Drop a trail dot every N frames." },
-    { key: "trailLength", type: "number", default: 200, min: 0, max: 400, step: 1, description: "How many trail nodes to keep." },
-    { key: "trailOpacity", type: "number", default: 0.01, min: 0, max: 1, step: 0.01, description: "Opacity of trail nodes." },
-    { key: "trailRadius", type: "number", default: 100, min: 1, max: 200, step: 0.5, description: "Radius of each trail dot." },
-    { key: "trailColor", type: "text", default: "#aa0000", description: "Fill color for trail dots (CSS color)." },
-    { key: "trailStrokeColor", type: "text", default: "#000000", description: "Stroke color for trail dots (CSS color)." },
-    { key: "trailStrokeWidth", type: "number", default: 0, min: 0, max: 20, step: 0.5, description: "Stroke width applied to trail dots (0 disables stroke)." },
+    { key: "running", type: "boolean", default: true, category: "Simulation", description: "Start/pause animation." },
+    { key: "tickMs", type: "number", default: 40, min: 16, max: 200, step: 1, category: "Simulation", description: "Frame interval (ms)." },
+    { key: "speed", type: "number", default: 1.35, min: 0.5, max: 12, step: 0.1, category: "Simulation", description: "Movement speed of each cell." },
+    { key: "outlinePad", type: "number", default: 0, min: 0, max: 40, step: 1, category: "Outline", description: "Padding between cluster and outline." },
+    { key: "outlineLag", type: "number", default: 0.36, min: 0.01, max: 0.6, step: 0.01, category: "Outline", description: "How much the outline lags/smooths behind movement." },
+    { key: "outlineScale", type: "number", default: 1.5, min: 0.2, max: 3, step: 0.05, category: "Outline", description: "Scale multiplier applied to base outline size." },
+    { key: "outlineShape", type: "select", default: "ellipse", options: ["auto", "ellipse", "rect"], category: "Outline", description: "Force outline shape or let formation decide." },
+    { key: "outlineStrokeWidth", type: "number", default: 0.05, min: 0.0, max: 8, step: 0.1, category: "Outline", description: "Stroke width applied to outlines." },
+    { key: "lineColor", type: "text", default: "#000000", category: "Colors", description: "Stroke color for outlines, dots, and overlays." },
+    { key: "backgroundColor", type: "text", default: "#ffffff", category: "Colors", description: "Canvas background color (CSS color)." },
+    { key: "dotStrokeWidth", type: "number", default: 0.05, min: 0.0, max: 8, step: 0.1, category: "Dots", description: "Stroke width for cluster dots." },
+    { key: "collisionPush", type: "number", default: 0, min: 0, max: 2, step: 0.05, category: "Collision", description: "Strength of collision separation between cells." },
+    { key: "showMergePaths", type: "boolean", default: false, category: "Merge", description: "Draw merged contact paths where circles touch." },
+    { key: "mergeContactRatio", type: "number", default: 0.97, min: 0.8, max: 1.1, step: 0.01, category: "Merge", description: "Contact tightness for merges (ratio of radii sum)." },
+    { key: "mergeMaxPairs", type: "number", default: 72, min: 1, max: 500, step: 1, category: "Merge", description: "Maximum merge overlays to display simultaneously." },
+    { key: "mergeSmoothing", type: "number", default: 0.99, min: 0, max: 0.99, step: 0.01, category: "Merge", description: "Smoothing factor for merge appearance/disappearance (higher = faster response)." },
+    { key: "mergeFalloff", type: "number", default: 0, min: 0, max: 0.99, step: 0.01, category: "Merge", description: "Soft falloff band and decay rate for merges." },
+    { key: "mergeEffectStyle", type: "select", default: "ring", options: ["ring", "blend", "solid"], category: "Merge", description: "Merge color style: match halo color, blend outline colors, or force a solid fill." },
+    { key: "mergeEffectColor", type: "text", default: "#aa0000", category: "Merge", description: "Fill/stroke color when merge effect style is set to solid." },
+    { key: "ringCount", type: "number", default: 40, min: 1, max: 50, step: 1, category: "Population", description: "How many ring bacteria to spawn." },
+    { key: "fitCells", type: "boolean", default: true, category: "Population", description: "Clamp spawned cells to fit the viewport area." },
+    { key: "fitFillRatio", type: "number", default: 0.35, min: 0.05, max: 1, step: 0.01, category: "Population", description: "Max fill ratio of viewport area when clamping cells." },
+    { key: "ringMinRadius", type: "number", default: 10, min: 1, max: 500, step: 1, category: "Population", description: "Minimum radius for randomly sized rings." },
+    { key: "ringMaxRadius", type: "number", default: 88, min: 1, max: 500, step: 1, category: "Population", description: "Maximum radius for randomly sized rings." },
+    { key: "showMultiRing", type: "boolean", default: true, category: "Halo", description: "Render multi-ring halo component." },
+    { key: "multiRingCount", type: "number", default: 20, min: 0, max: 50, step: 1, category: "Halo", description: "How many halo rings to draw." },
+    { key: "multiRingStart", type: "number", default: 0.7, min: 0.4, max: 3, step: 0.05, category: "Halo", description: "Scale multiplier for the innermost halo ring." },
+    { key: "multiRingGap", type: "number", default: 14.5, min: 0, max: 200, step: 0.5, category: "Halo", description: "Additional radius (px) added per successive halo ring." },
+    { key: "multiRingStrokeWidth", type: "number", default: 7.75, min: 0.2, max: 10, step: 0.05, category: "Halo", description: "Stroke width for halo rings." },
+    { key: "multiRingOpacity", type: "number", default: 0.26, min: 0, max: 1, step: 0.01, category: "Halo", description: "Opacity of the inner-most halo ring." },
+    { key: "multiRingFade", type: "number", default: 0.01, min: 0, max: 0.5, step: 0.01, category: "Halo", description: "Opacity falloff per halo ring." },
+    { key: "multiRingColor", type: "text", default: "#5a4feeff", category: "Halo", description: "Stroke color for halo rings." },
+    { key: "ringColorMode", type: "select", default: "uniform", options: ["uniform", "radius", "random"], category: "Halo", description: "Halo color mode: uniform, size-based gradient, or random palette." },
+    { key: "ringColorA", type: "text", default: "#ffffff", category: "Halo", description: "Gradient start color (used in radius mode)." },
+    { key: "ringColorB", type: "text", default: "#000000", category: "Halo", description: "Gradient end color (used in radius mode)." },
+    { key: "multiRingPalette", type: "text", default: "#aa0000,#0088ff,#00aa44,#ffa500", category: "Halo", description: "Comma-separated palette used when color mode is random." },
+    { key: "showCircleRect", type: "boolean", default: false, category: "Circle Overlay", description: "Render circle overlay component." },
+    { key: "circleStrokeWidth", type: "number", default: 0.2, min: 0.05, max: 5, step: 0.05, category: "Circle Overlay", description: "Stroke width for the circle overlay." },
+    { key: "circleRectColor", type: "text", default: "#000000", category: "Circle Overlay", description: "Stroke color for circle overlays." },
+    { key: "showTrail", type: "boolean", default: false, category: "Trail", description: "Render trailing filled circles." },
+    { key: "trailEveryN", type: "number", default: 1, min: 1, max: 10, step: 1, category: "Trail", description: "Drop a trail dot every N frames." },
+    { key: "trailLength", type: "number", default: 200, min: 0, max: 400, step: 1, category: "Trail", description: "How many trail nodes to keep." },
+    { key: "trailOpacity", type: "number", default: 0.01, min: 0, max: 1, step: 0.01, category: "Trail", description: "Opacity of trail nodes." },
+    { key: "trailRadius", type: "number", default: 100, min: 1, max: 200, step: 0.5, category: "Trail", description: "Radius of each trail dot." },
+    { key: "trailColor", type: "text", default: "#aa0000", category: "Trail", description: "Fill color for trail dots (CSS color)." },
+    { key: "trailStrokeColor", type: "text", default: "#000000", category: "Trail", description: "Stroke color for trail dots (CSS color)." },
+    { key: "trailStrokeWidth", type: "number", default: 0, min: 0, max: 20, step: 0.5, category: "Trail", description: "Stroke width applied to trail dots (0 disables stroke)." },
   ],
   create({ mountEl }, state) {
     let formations = [];
     const root = d3.select(mountEl);
     const svg = root.append("svg")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .style("display", "block")
         .attr("tabindex", 0)
         .style("background", state.backgroundColor || "white")
         .style("touch-action", "none");
@@ -676,13 +679,20 @@ registerVisual("bacteriaMinimal", {
       mergeState = new Map();
     }
 
+    const size = () => {
+      const rect = mountEl.getBoundingClientRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
+      return { width, height };
+    };
+    let lastSize = { width: 1, height: 1 };
+
     function resize() {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      svg
-        .attr("width", width)
-        .attr("height", height)
-        .attr("viewBox", `0 0 ${width} ${height}`);
+      const nextSize = size();
+      lastSize = nextSize;
+      width = lastSize.width;
+      height = lastSize.height;
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
     }
 
     function stretchFactor(_cell) {
@@ -1177,7 +1187,8 @@ registerVisual("bacteriaMinimal", {
       else stop();
     }
 
-    window.addEventListener("resize", applyChanges);
+    const ro = new ResizeObserver(() => applyChanges());
+    ro.observe(mountEl);
     resize();
     applyChanges();
     start();
@@ -1186,7 +1197,7 @@ registerVisual("bacteriaMinimal", {
       render: () => applyChanges(),
       destroy: () => {
         stop();
-        window.removeEventListener("resize", applyChanges);
+        ro.disconnect();
         svg.remove();
       }
     };

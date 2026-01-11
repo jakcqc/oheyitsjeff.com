@@ -18,30 +18,30 @@ registerVisual("kakeyaBesicovitchNeedle", {
 
   params: [
     // Construction
-    { key: "levels", type: "number", default: 6, min: 0, max: 10, step: 1, description: "Tree recursion depth (more = more directions / pieces)." },
-    { key: "splitK", type: "number", default: 2, min: 2, max: 10, step: 1, description: "How many base slices each triangle splits into per level (2 is classic)." },
-    { key: "overlap", type: "number", default: 0.78, min: 0, max: 1, step: 0.01, description: "How strongly slices are pulled toward center (higher = more overlap / smaller footprint)." },
-    { key: "copies", type: "number", default: 6, min: 1, max: 16, step: 1, description: "Rotate the whole tree into multiple orientations (helps fill many directions)." },
-    { key: "baseWidth", type: "number", default: 2.0, min: 0.2, max: 4.0, step: 0.01, description: "Width of the starting triangle base (normalized units)." },
-    { key: "height", type: "number", default: 1.0, min: 0.2, max: 2.5, step: 0.01, description: "Height of the starting triangle (normalized units)." },
+    { key: "levels", type: "number", default: 6, min: 0, max: 10, step: 1, category: "Construction", description: "Tree recursion depth (more = more directions / pieces)." },
+    { key: "splitK", type: "number", default: 2, min: 2, max: 10, step: 1, category: "Construction", description: "How many base slices each triangle splits into per level (2 is classic)." },
+    { key: "overlap", type: "number", default: 0.78, min: 0, max: 1, step: 0.01, category: "Construction", description: "How strongly slices are pulled toward center (higher = more overlap / smaller footprint)." },
+    { key: "copies", type: "number", default: 6, min: 1, max: 16, step: 1, category: "Construction", description: "Rotate the whole tree into multiple orientations (helps fill many directions)." },
+    { key: "baseWidth", type: "number", default: 2.0, min: 0.2, max: 4.0, step: 0.01, category: "Construction", description: "Width of the starting triangle base (normalized units)." },
+    { key: "height", type: "number", default: 1.0, min: 0.2, max: 2.5, step: 0.01, category: "Construction", description: "Height of the starting triangle (normalized units)." },
 
     // Needles
-    { key: "needleLen", type: "number", default: 1.0, min: 0.05, max: 2.0, step: 0.01, description: "Needle length (normalized units)." },
-    { key: "needleThickPx", type: "number", default: 3, min: 0.25, max: 30, step: 0.25, description: "Needle rectangle thickness in pixels." },
-    { key: "needlePadPx", type: "number", default: 0, min: 0, max: 30, step: 0.25, description: "Shorten each needle rectangle at both ends (visual spacing)." },
-    { key: "needleAlpha", type: "number", default: 0.25, min: 0.01, max: 1, step: 0.01, description: "Opacity for the full needle set footprint." },
-    { key: "maxNeedles", type: "number", default: 4000, min: 50, max: 30000, step: 50, description: "Safety cap for number of needles drawn." },
+    { key: "needleLen", type: "number", default: 1.0, min: 0.05, max: 2.0, step: 0.01, category: "Needles", description: "Needle length (normalized units)." },
+    { key: "needleThickPx", type: "number", default: 3, min: 0.25, max: 30, step: 0.25, category: "Needles", description: "Needle rectangle thickness in pixels." },
+    { key: "needlePadPx", type: "number", default: 0, min: 0, max: 30, step: 0.25, category: "Needles", description: "Shorten each needle rectangle at both ends (visual spacing)." },
+    { key: "needleAlpha", type: "number", default: 0.25, min: 0.01, max: 1, step: 0.01, category: "Needles", description: "Opacity for the full needle set footprint." },
+    { key: "maxNeedles", type: "number", default: 4000, min: 50, max: 30000, step: 50, category: "Needles", description: "Safety cap for number of needles drawn." },
 
     // Display toggles
-    { key: "showTriangles", type: "boolean", default: false, description: "Draw construction triangles (the 'set')." },
-    { key: "triFillAlpha", type: "number", default: 0.10, min: 0, max: 1, step: 0.01, description: "Triangle fill opacity." },
-    { key: "triStrokeAlpha", type: "number", default: 0.18, min: 0, max: 1, step: 0.01, description: "Triangle stroke opacity." },
-    { key: "showAllNeedles", type: "boolean", default: true, description: "Draw all needles (footprint)." },
+    { key: "showTriangles", type: "boolean", default: false, category: "Display", description: "Draw construction triangles (the 'set')." },
+    { key: "triFillAlpha", type: "number", default: 0.10, min: 0, max: 1, step: 0.01, category: "Display", description: "Triangle fill opacity." },
+    { key: "triStrokeAlpha", type: "number", default: 0.18, min: 0, max: 1, step: 0.01, category: "Display", description: "Triangle stroke opacity." },
+    { key: "showAllNeedles", type: "boolean", default: true, category: "Display", description: "Draw all needles (footprint)." },
 
     // Coloring
-    { key: "colorMode", type: "select", default: "angle", options: ["angle", "level", "copy", "mono"], description: "How needles are colored." },
-    { key: "palette", type: "select", default: "turbo", options: ["turbo", "viridis", "plasma", "magma", "cividis", "spectral"], description: "Palette for numeric color modes." },
-    { key: "monoColor", type: "text", default: "#111111", description: "Mono mode color." },
+    { key: "colorMode", type: "select", default: "angle", options: ["angle", "level", "copy", "mono"], category: "Color", description: "How needles are colored." },
+    { key: "palette", type: "select", default: "turbo", options: ["turbo", "viridis", "plasma", "magma", "cividis", "spectral"], category: "Color", description: "Palette for numeric color modes." },
+    { key: "monoColor", type: "text", default: "#111111", category: "Color", description: "Mono mode color." },
 
     // Sweep needle (animated)
     // { key: "animateSweep", type: "boolean", default: false, description: "Animate a single rotating needle (and highlight the closest precomputed needle)." },
@@ -51,8 +51,8 @@ registerVisual("kakeyaBesicovitchNeedle", {
     // { key: "sweepGlowPx", type: "number", default: 3, min: 0, max: 20, step: 0.25, description: "Extra thickness for highlighted sweep needle." },
 
     // Guides + stats
-    { key: "showBoundsCircle", type: "boolean", default: false, description: "Draw a faint outer circle showing the fit-to-view bound." },
-    { key: "showStats", type: "boolean", default: false, description: "Draw stats text." },
+    { key: "showBoundsCircle", type: "boolean", default: false, category: "Guides", description: "Draw a faint outer circle showing the fit-to-view bound." },
+    { key: "showStats", type: "boolean", default: false, category: "Guides", description: "Draw stats text." },
     //{ key: "fitToView", type: "boolean", default: true, description: "Scale construction to fit viewport." },
   ],
 

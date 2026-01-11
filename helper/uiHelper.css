@@ -22,7 +22,7 @@
       background-color: #2a2a2a;
       padding:5px;
     }
-    #infoBar{
+#infoBar{
       padding-top:10px ;
       padding-bottom:15px ;
 
@@ -35,6 +35,9 @@
       /* padding-top: 10px; */
       text-align: center;
       /* font-size: x-large; */
+    }
+    #infoBar.hidden{
+      display: none;
     }
     #infoBar button {
   background-color: black;
@@ -73,12 +76,12 @@
   }
     #config {
     position: absolute; 
-    /* top: 20px;  */
+    top: 30px; 
     /* right: 20px;               Start at the horizontal center */
     /* transform: translateX(-50%); Move it back by half its width */
     background: rgba(39, 39, 39, 0.8);
     border: 3px solid  rgb(233, 255, 182);
-     padding: 10px; 
+     padding: 5px; 
     border-radius: 5px; 
     z-index: 100;
     /* FIX */
@@ -98,10 +101,26 @@ resize: horizontal;
     color:white;
 
   }
+  .vr-paramGroupTitle
+  {
+    text-decoration: underline;
+    margin-bottom: 4px;
+  }
   #config.open {
   opacity: 1;
   pointer-events: auto;
   visibility: visible;
+}
+  #config.pinned {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  position: fixed;
+  right: 0;
+  top: var(--ui-top-offset, 0px);
+  height: calc(100vh - var(--ui-top-offset, 0px) - 15px);
+  max-height: calc(100vh - var(--ui-top-offset, 0px) - 15px);
+  border-radius: 0;
 }
     body{
       padding: 0px ;
@@ -109,9 +128,37 @@ resize: horizontal;
       /* background: var(--color-main); */
       overflow: hidden;
     }
+    body:not(.ui-pinned) #background{
+      position: absolute;
+      top: var(--ui-top-offset, 0px);
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: auto;
+      height: calc(100vh - var(--ui-top-offset, 0px));
+    }
+    body:not(.ui-pinned) #outer,
+    body:not(.ui-pinned) #vis{
+      width: 100%;
+      height: 100%;
+    }
     button{
       padding:3px;
       font-size: 15px;
+    }
+    body.ui-pinned #background{
+      position: absolute;
+      top: var(--ui-top-offset, 0px);
+      left: 0;
+      right: var(--ui-right-width, 0px);
+      bottom: 0;
+      width: auto;
+      height: calc(100vh - var(--ui-top-offset, 0px));
+    }
+    body.ui-pinned #outer,
+    body.ui-pinned #vis{
+      width: 100%;
+      height: 100%;
     }
     #button-exit{
       position:absolute; 
@@ -123,11 +170,39 @@ resize: horizontal;
        padding-left: 5px;
        padding-right: 5px;
     }
+    .vr-desc{
+      margin-bottom: 5px;
+    }
     /* Tab bar container */
 .vr-tabs {
   display: flex;
+  flex-direction: column;
   gap: 6px;
+  flex: 0 0 auto;
   /* margin-bottom: 8px; */
+}
+.vr-tabs.hidden {
+  display: none;
+}
+.vr-tabCol {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+.vr-tabsToggle {
+  appearance: none;
+  border: 2px solid #ffffff;
+  background: #1e1e1e;
+  color: #bbb;
+  padding: 2px 6px;
+  font-size: 15px;
+  font-style: bold;
+  cursor: pointer;
+  border-radius: 4px;
 }
 
 /* Base tab button */
@@ -139,7 +214,7 @@ resize: horizontal;
   padding: 4px 5px;
   font-size: 12px;
   cursor: pointer;
-  border-radius: 4px 4px 0 0;
+  border-radius: 4px;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
@@ -162,7 +237,6 @@ resize: horizontal;
   background: #2f2f2f;
   color: #ffffff;
   border-color: #666;
-  border-bottom-color: transparent;
   font-weight: 600;
   position: relative;
   z-index: 1;
@@ -198,6 +272,40 @@ input[type="range"] {
   padding: 8px;
   padding-top: 4px;
   background: #1a1a1a;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.vr-tabLayout {
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+}
+.vr-settingsIO {
+  background: rgba(26, 26, 26, 0.95);
+  padding-top: 6px;
+}
+.vr-settingsIO.hidden {
+  display: none;
+}
+.vr-settingsWrap {
+  position: sticky;
+  bottom: 0;
+  background: transparent;
+  padding-top: 0;
+}
+.vr-ioToggle {
+  appearance: none;
+  border: 2px solid #ffffff;
+  background: #1e1e1e;
+  color: #bbb;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  position: absolute;
+  top: -16px;
+  right: 6px;
+  z-index: 2;
 }
 #innerLightNav{
   display: block;
@@ -272,12 +380,25 @@ bottom: 30px;
 }
 @media (max-width: 400px) {
   #config{
-    width: 350px;
+    width: 95%;
   }
   .vr-tabs{
     gap:0px;
   }
   #config.open{
-    width: 350px;
+    width: 95%;
+  }
+}
+@media (max-width: 700px) {
+  #config,
+  #config.open,
+  #config.pinned{
+    left: 8px;
+    right: 8px;
+    top: calc(var(--ui-top-offset, 0px) + 8px);
+    width: auto;
+    max-width: none;
+    height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
+    max-height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
   }
 }

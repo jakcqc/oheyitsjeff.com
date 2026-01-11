@@ -10,6 +10,7 @@ registerVisual("gameOfLifeSVG", {
     key: "cellPx",
     type: "number",
     default: 8,
+    category: "Grid",
     min: 1,
     max: 30,
     step: 1,
@@ -19,6 +20,7 @@ registerVisual("gameOfLifeSVG", {
     key: "tickMs",
     type: "number",
     default: 120,
+    category: "Simulation",
     min: 16,
     max: 1000,
     step: 1,
@@ -28,18 +30,21 @@ registerVisual("gameOfLifeSVG", {
     key: "running",
     type: "boolean",
     default: true,
+    category: "Simulation",
     description: "Start or pause the simulation."
   },
   {
     key: "wrapEdges",
     type: "boolean",
     default: false,
+    category: "Grid",
     description: "If enabled, the grid wraps around at the edges (toroidal space)."
   },
   {
     key: "randomFill",
     type: "number",
     default: 0.00,
+    category: "Simulation",
     min: 0,
     max: 1,
     step: 0.01,
@@ -50,6 +55,7 @@ registerVisual("gameOfLifeSVG", {
     key: "mode",
     type: "select",
     default: "dense",
+    category: "Rules",
     options: ["classic", "dense", "color"],
     description: "Rule set to use: classic Life, dense high-neighbor rules, or color-based behavior."
   },
@@ -59,6 +65,7 @@ registerVisual("gameOfLifeSVG", {
     key: "denseRadius",
     type: "number",
     default: 2,
+    category: "Dense Rules",
     min: 1,
     max: 3,
     step: 1,
@@ -68,6 +75,7 @@ registerVisual("gameOfLifeSVG", {
     key: "denseBirth",
     type: "number",
     default: 0,
+    category: "Dense Rules",
     min: 0,
     max: 48,
     step: 1,
@@ -77,6 +85,7 @@ registerVisual("gameOfLifeSVG", {
     key: "denseSurviveMin",
     type: "number",
     default: 18,
+    category: "Dense Rules",
     min: 0,
     max: 48,
     step: 1,
@@ -86,6 +95,7 @@ registerVisual("gameOfLifeSVG", {
     key: "denseSurviveMax",
     type: "number",
     default: 24,
+    category: "Dense Rules",
     min: 0,
     max: 48,
     step: 1,
@@ -97,18 +107,21 @@ registerVisual("gameOfLifeSVG", {
     key: "paintColor",
     type: "color",
     default: "#00c2ff",
+    category: "Color",
     description: "Base color used when painting or spawning cells in color mode."
   },
   {
     key: "shiftColorOnSurvive",
     type: "boolean",
     default: false,
+    category: "Color",
     description: "If enabled, surviving cells gradually shift hue over time."
   },
   {
     key: "strokeColor",
     type: "color",
     default: "#000010",
+    category: "Color",
     description: "What color for the stroke of the squares"
   }
 ],
@@ -117,6 +130,9 @@ registerVisual("gameOfLifeSVG", {
     const root = d3.select(mountEl);
 
     const svg = root.append("svg")
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .style("display", "block")
       .style("background", "white")
       .style("touch-action", "none");
 
@@ -222,17 +238,25 @@ registerVisual("gameOfLifeSVG", {
       color.fill(hexToRgbInt(state.paintColor));
     }
 
+    let lastSize = { width: 1, height: 1 };
+    const size = () => {
+      const rect = mountEl.getBoundingClientRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
+      return { width, height };
+    };
+
     function rebuildGrid() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const nextSize = size();
+      lastSize = nextSize;
+      const w = lastSize.width;
+      const h = lastSize.height;
 
       cols = Math.max(10, Math.floor(w / state.cellPx));
       rows = Math.max(10, Math.floor(h / state.cellPx));
       n = cols * rows;
 
-      svg.attr("width", cols * state.cellPx)
-         .attr("height", rows * state.cellPx)
-         .attr("viewBox", `0 0 ${cols * state.cellPx} ${rows * state.cellPx}`);
+      svg.attr("viewBox", `0 0 ${w} ${h}`);
 
       alive = new Uint8Array(n);
       color = new Uint32Array(n);
@@ -443,10 +467,8 @@ registerVisual("gameOfLifeSVG", {
       };
     }
 
-    function onResize() {
-      rebuildGrid();
-    }
-    window.addEventListener("resize", onResize);
+    const ro = new ResizeObserver(() => rebuildGrid());
+    ro.observe(mountEl);
 
     applyParamChanges();
     startLoop();
@@ -455,7 +477,7 @@ registerVisual("gameOfLifeSVG", {
       render: () => applyParamChanges(),
       destroy: () => {
         stopLoop();
-        window.removeEventListener("resize", onResize);
+        ro.disconnect();
         svg.remove();
       }
     };

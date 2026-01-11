@@ -417,7 +417,13 @@ const projects = shuffle([
     image: "assets/Images/voro.png",
     description: "Voronoi diagrams that move and grow. Fractal like patterns emerge. ",
     link: "/Voronoi/"
-  }
+  },
+  // {
+  //   title: "Equation_Visualizer",
+  //   image: "assets/Images/eng.jpg",
+  //   description: "Starter SVG grid for building equation-driven visuals + neighborhood transforms.",
+  //   link: "/EquationVisualizer/"
+  // }
 
 ]);
 // document.addEventListener("DOMContentLoaded", function() {

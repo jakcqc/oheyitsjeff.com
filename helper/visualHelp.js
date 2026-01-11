@@ -5,8 +5,8 @@
 // - auto-building a UI to edit them
 import { ensureTransformState,initTransformRuntime,buildTransformPanel} from "../helper/transformHelp.js";
 import { registerTransformTab } from "../helper/transformHelp.js";
-import { applyPropOpsToSubtree } from "../helper/svgEditor.js";
-import { registerPropOpsTab } from "../helper/svgEditor.js";
+import { applyPropOpsToSubtree, applyScriptOpsToSubtree } from "../helper/svgEditor.js";
+import { registerPropOpsTab, registerScriptOpsTab } from "../helper/svgEditor.js";
 import { registerAnimateTab, maybeAutoplayAnimation } from "../helper/animationHelp.js";
 import { registerLLMTab } from "../helper/llmTab.js";
 
@@ -35,6 +35,7 @@ function buildRegisteredTabs(ctx) {
 
 registerTransformTab();
 registerPropOpsTab();
+registerScriptOpsTab();
 registerAnimateTab();
 registerLLMTab();
 
@@ -138,6 +139,22 @@ export function mountUserTabs({
 
   const tabBar = el("div", { className: "vr-tabs" });
   const body = el("div", { className: "vr-tabBody" });
+  const layout = el("div", { className: "vr-tabLayout" });
+  const tabCol = el("div", { className: "vr-tabCol" });
+  const uiState = state?.__ui || {};
+  if (state && !state.__ui) state.__ui = uiState;
+  if (uiState.tabsOpen === undefined) uiState.tabsOpen = true;
+
+  const tabToggle = el("button", {
+    className: "vr-tabsToggle",
+    type: "button",
+    textContent: uiState.tabsOpen ? "-" : "+",
+  });
+  tabToggle.onclick = () => {
+    uiState.tabsOpen = !uiState.tabsOpen;
+    tabToggle.textContent = uiState.tabsOpen ? "-" : "+";
+    tabBar.classList.toggle("hidden", !uiState.tabsOpen);
+  };
 
   const render = () => {
     tabBar.innerHTML = "";
@@ -162,8 +179,12 @@ export function mountUserTabs({
     }
   };
 
-  container.appendChild(tabBar);
-  container.appendChild(body);
+  tabBar.classList.toggle("hidden", !uiState.tabsOpen);
+  tabCol.appendChild(tabToggle);
+  tabCol.appendChild(tabBar);
+  layout.appendChild(tabCol);
+  layout.appendChild(body);
+  container.appendChild(layout);
   render();
 }
 
@@ -204,9 +225,29 @@ export function mountAutoUI({
 
 function buildParamsPanel({ spec, state, onChange }) {
   const panel = document.createElement("div");
+  const groups = new Map();
+
   for (const param of spec.params || []) {
-    panel.appendChild(buildControl({ param, state, onChange }));
+    const rawCategory = typeof param.category === "string" ? param.category.trim() : "";
+    const category = rawCategory || "General";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(param);
   }
+
+  for (const [category, params] of groups.entries()) {
+    const group = el("details", { className: "vr-paramGroup", open: true });
+    const summary = el("summary", { className: "vr-paramGroupTitle", textContent: category });
+    const body = el("div", { className: "vr-paramGroupBody" });
+
+    for (const param of params) {
+      body.appendChild(buildControl({ param, state, onChange }));
+    }
+
+    group.appendChild(summary);
+    group.appendChild(body);
+    panel.appendChild(group);
+  }
+
   return panel;
 }
 
@@ -222,6 +263,7 @@ function buildParamsPanel({ spec, state, onChange }) {
  * @property {any} default
  * @property {string} [description]        - Small helper text under control
  * @property {string} [cssClass]           - Optional CSS class added to wrapper + input
+ * @property {string} [category]           - Optional UI grouping label
  * @property {number} [min]                - Optional range constraints (number)
  * @property {number} [max]
  * @property {number} [step]
@@ -260,6 +302,7 @@ export function exportVisualUIJsonSpec(visualId) {
       default: p.default,
       description: p.description ?? null,
       cssClass: p.cssClass ?? null,
+      category: typeof p.category === "string" ? p.category : null,
       min: typeof p.min === "number" ? p.min : null,
       max: typeof p.max === "number" ? p.max : null,
       step: typeof p.step === "number" ? p.step : null,
@@ -333,9 +376,10 @@ export function mountVisualUI({
   uiEl.innerHTML = "";
 
   const autoUiEl = el("div", { className: "vr-autoUI" });
+  const ioWrap = el("div", { className: "vr-settingsWrap" });
   const ioEl = el("div", { className: "vr-settingsIO" });
 
-  uiEl.append(autoUiEl, ioEl);
+  uiEl.append(autoUiEl, ioWrap);
 
   const rerender = () => {
   instance?.render?.();
@@ -343,6 +387,7 @@ export function mountVisualUI({
   const svg = mountEl.firstElementChild;
   if (svg) {
     applyPropOpsToSubtree(svg, state.__propOps?.stack);
+    applyScriptOpsToSubtree(svg, state.__scriptOps?.stack, { svg, state, mountEl });
   }
 };
 
@@ -370,12 +415,91 @@ export function mountVisualUI({
     })
   );
 
-makeSaveSVG(ioEl, mountEl, visualId);
-makeLoadSVG(ioEl, mountEl, (svgEl, rawText) => {
-  // Optional: keep your SVG textarea/editor in sync
-  // svgTa.value = rawText;
-  // runUserCode();
-});
+  makeSaveSVG(ioEl, mountEl, visualId);
+  makeLoadSVG(ioEl, mountEl, (svgEl, rawText) => {
+    // Optional: keep your SVG textarea/editor in sync
+    // svgTa.value = rawText;
+    // runUserCode();
+  });
+
+  const configEl = document.getElementById("config");
+  const infoBar = document.getElementById("infoBar");
+  const syncPinnedLayout = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    const infoBarHeight =
+      infoBar && !infoBar.classList.contains("hidden")
+        ? infoBar.getBoundingClientRect().height
+        : 0;
+    const pinned = !!configEl?.classList.contains("pinned");
+    const configWidth = pinned ? (configEl?.getBoundingClientRect().width || 0) : 0;
+    root.style.setProperty("--ui-right-width", `${Math.max(0, configWidth)}px`);
+    root.style.setProperty("--ui-top-offset", `${Math.max(0, infoBarHeight)}px`);
+    body.classList.toggle("ui-pinned", pinned);
+  };
+  if (configEl) {
+    const pinBtn = document.createElement("button");
+    pinBtn.type = "button";
+    pinBtn.classList.add("btn-inline");
+    const syncPinLabel = () => {
+      pinBtn.textContent = configEl.classList.contains("pinned") ? "Unpin UI" : "Pin UI";
+    };
+    pinBtn.onclick = () => {
+      const nextPinned = !configEl.classList.contains("pinned");
+      configEl.classList.toggle("pinned", nextPinned);
+      if (nextPinned) configEl.classList.add("open");
+      syncPinLabel();
+      syncPinnedLayout();
+    };
+    syncPinLabel();
+    ioEl.appendChild(pinBtn);
+  }
+
+  if (state) {
+    if (!state.__ui) state.__ui = {};
+    if (state.__ui.ioOpen === undefined) state.__ui.ioOpen = true;
+    ioEl.classList.toggle("hidden", !state.__ui.ioOpen);
+
+    const ioToggle = document.createElement("button");
+    ioToggle.type = "button";
+    ioToggle.classList.add("vr-ioToggle");
+    const syncIoSymbol = () => {
+      ioToggle.textContent = state.__ui.ioOpen ? "-" : "+";
+    };
+    ioToggle.onclick = () => {
+      state.__ui.ioOpen = !state.__ui.ioOpen;
+      ioEl.classList.toggle("hidden", !state.__ui.ioOpen);
+      syncIoSymbol();
+    };
+    syncIoSymbol();
+    ioWrap.appendChild(ioToggle);
+    ioWrap.appendChild(ioEl);
+
+  }
+
+  if (infoBar) {
+    const navBtn = document.createElement("button");
+    navBtn.type = "button";
+    navBtn.classList.add("btn-inline");
+    const syncNavLabel = () => {
+      navBtn.textContent = infoBar.classList.contains("hidden") ? "Show Nav" : "Hide Nav";
+    };
+    navBtn.onclick = () => {
+      infoBar.classList.toggle("hidden");
+      syncNavLabel();
+      syncPinnedLayout();
+    };
+    syncNavLabel();
+    ioEl.appendChild(navBtn);
+  }
+  if (configEl) {
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => syncPinnedLayout());
+      ro.observe(configEl);
+    }
+    window.addEventListener("resize", syncPinnedLayout);
+    syncPinnedLayout();
+  }
 
   // If a visual sets `state.__anim.ui.autoPlay = true`, start playing immediately (even if tab never opened).
   maybeAutoplayAnimation({ mountEl, state, onChange: rerender });
@@ -414,7 +538,29 @@ if (providedState && typeof providedState === "object") {
   });
 
   document.getElementById("button-info").onclick = () => {
-    document.getElementById("config").classList.toggle("open");
+    const configEl = document.getElementById("config");
+    const infoBar = document.getElementById("infoBar");
+    const syncPinnedLayout = () => {
+      const root = document.documentElement;
+      const body = document.body;
+      const infoBarHeight =
+        infoBar && !infoBar.classList.contains("hidden")
+          ? infoBar.getBoundingClientRect().height
+          : 0;
+      const pinned = !!configEl?.classList.contains("pinned");
+      const configWidth = pinned ? (configEl?.getBoundingClientRect().width || 0) : 0;
+      root.style.setProperty("--ui-right-width", `${Math.max(0, configWidth)}px`);
+      root.style.setProperty("--ui-top-offset", `${Math.max(0, infoBarHeight)}px`);
+      body.classList.toggle("ui-pinned", pinned);
+    };
+    if (!configEl) return;
+    if (configEl.classList.contains("pinned")) {
+      configEl.classList.add("open");
+      syncPinnedLayout();
+      return;
+    }
+    configEl.classList.toggle("open");
+    syncPinnedLayout();
   };
 
   return {
