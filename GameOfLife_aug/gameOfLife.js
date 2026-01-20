@@ -56,8 +56,8 @@ registerVisual("gameOfLifeSVG", {
     type: "select",
     default: "dense",
     category: "Rules",
-    options: ["classic", "dense", "color"],
-    description: "Rule set to use: classic Life, dense high-neighbor rules, or color-based behavior."
+    options: ["classic", "dense", "protofield", "color"],
+    description: "Rule set to use: classic Life, dense high-neighbor rules, protofield operator, or color-based behavior."
   },
 
   // Dense mode tuning
@@ -102,6 +102,58 @@ registerVisual("gameOfLifeSVG", {
     description: "Maximum neighbors allowed for a live cell to survive in dense mode."
   },
 
+  // Protofield mode
+  {
+    key: "protoAlpha",
+    type: "number",
+    default: 0.7,
+    category: "Protofield",
+    min: -2,
+    max: 2,
+    step: 0.05,
+    description: "Self-influence factor for the protofield update."
+  },
+  {
+    key: "protoBeta",
+    type: "number",
+    default: 0.05,
+    category: "Protofield",
+    min: -2,
+    max: 2,
+    step: 0.05,
+    description: "Neighbor influence factor for the protofield update."
+  },
+  {
+    key: "protoThreshMin",
+    type: "number",
+    default: 1.0,
+    category: "Protofield",
+    min: -10,
+    max: 10,
+    step: 0.1,
+    description: "Lower threshold for projecting protofield values to alive."
+  },
+  {
+    key: "protoThreshMax",
+    type: "number",
+    default: 2.6,
+    category: "Protofield",
+    min: -10,
+    max: 10,
+    step: 0.1,
+    description: "Upper threshold for projecting protofield values to alive."
+  },
+  {
+    key: "protoNoise",
+    type: "number",
+    default: 1.3,
+    category: "Protofield",
+    min: 0,
+    max: 5,
+    step: 0.1,
+    description: "Random jitter added when seeding the protofield."
+  },
+
   // Color mode
   {
     key: "paintColor",
@@ -141,6 +193,7 @@ registerVisual("gameOfLifeSVG", {
     let cols = 0, rows = 0, n = 0;
     let alive = null;         // Uint8Array
     let color = null;         // Uint32Array (0xRRGGBB)
+    let proto = null;         // Float32Array
     let rects = null;         // d3 selection
     let rafId = null;
     let lastTick = 0;
@@ -180,6 +233,12 @@ registerVisual("gameOfLifeSVG", {
       return color[idx(x, y)] >>> 0;
     }
 
+    function getProto(x, y) {
+      if (state.wrapEdges) return proto[idx(wrap(x, cols), wrap(y, rows))] || 0;
+      if (!inBounds(x, y)) return 0;
+      return proto[idx(x, y)] || 0;
+    }
+
     function countNeighborsMoore(x, y) {
       let c = 0;
       for (let dy = -1; dy <= 1; dy++) {
@@ -200,6 +259,56 @@ registerVisual("gameOfLifeSVG", {
         }
       }
       return c;
+    }
+
+    function sumNeighborsRadius(x, y, r) {
+      let s = 0;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          s += getProto(x + dx, y + dy);
+        }
+      }
+      return s;
+    }
+
+    function protoThresholds() {
+      const lo = Math.min(state.protoThreshMin, state.protoThreshMax);
+      const hi = Math.max(state.protoThreshMin, state.protoThreshMax);
+      return { lo, hi };
+    }
+
+    function protoDeadValue() {
+      const { lo } = protoThresholds();
+      return lo - 1;
+    }
+
+    function protoAliveValue() {
+      const { lo, hi } = protoThresholds();
+      return (lo + hi) * 0.5;
+    }
+
+    function setProtoAt(i, isAlive) {
+      proto[i] = isAlive ? protoAliveValue() : protoDeadValue();
+    }
+
+    function seedProtoFromAlive(noiseScale) {
+      const noise = Math.max(0, noiseScale || 0);
+      const aliveValue = protoAliveValue();
+      const deadValue = protoDeadValue();
+      for (let i = 0; i < n; i++) {
+        const base = alive[i] ? aliveValue : deadValue;
+        const jitter = noise ? (Math.random() * 2 - 1) * noise : 0;
+        proto[i] = base + jitter;
+      }
+    }
+
+    function projectAliveFromProto() {
+      const { lo, hi } = protoThresholds();
+      for (let i = 0; i < n; i++) {
+        const v = proto[i] || 0;
+        alive[i] = (v >= lo && v <= hi) ? 1 : 0;
+      }
     }
 
     function majorityNeighborColor(x, y) {
@@ -231,11 +340,20 @@ registerVisual("gameOfLifeSVG", {
         alive[i] = Math.random() < p ? 1 : 0;
         color[i] = paint;
       }
+      if (proto) {
+        const noise = state.mode === "protofield" ? state.protoNoise : 0;
+        seedProtoFromAlive(noise);
+        if (state.mode === "protofield") projectAliveFromProto();
+      }
     }
 
     function clearAll() {
       alive.fill(0);
       color.fill(hexToRgbInt(state.paintColor));
+      if (proto) {
+        const deadValue = protoDeadValue();
+        for (let i = 0; i < n; i++) proto[i] = deadValue;
+      }
     }
 
     let lastSize = { width: 1, height: 1 };
@@ -260,6 +378,7 @@ registerVisual("gameOfLifeSVG", {
 
       alive = new Uint8Array(n);
       color = new Uint32Array(n);
+      proto = new Float32Array(n);
 
       g.selectAll("*").remove();
 
@@ -278,6 +397,11 @@ registerVisual("gameOfLifeSVG", {
         .attr("height", state.cellPx)
         .attr("stroke", state.strokeColor)
         .attr("shape-rendering", "crispEdges");
+
+      if (state.mode === "protofield") {
+        seedProtoFromAlive(state.protoNoise);
+        projectAliveFromProto();
+      }
       draw();
     }
 
@@ -329,6 +453,25 @@ registerVisual("gameOfLifeSVG", {
             nextColor[i] = paint;
           }
         }
+      } else if (state.mode === "protofield") {
+        const r = clamp(state.denseRadius, 1, 3);
+        const alpha = state.protoAlpha;
+        const beta = state.protoBeta;
+        const { lo, hi } = protoThresholds();
+        const nextProto = new Float32Array(n);
+
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const i = idx(x, y);
+            const sum = sumNeighborsRadius(x, y, r);
+            const v = (alpha * (proto[i] || 0)) + (beta * sum);
+            nextProto[i] = v;
+            nextAlive[i] = (v >= lo && v <= hi) ? 1 : 0;
+            nextColor[i] = paint;
+          }
+        }
+
+        proto = nextProto;
       } else { // color
         for (let y = 0; y < rows; y++) {
           for (let x = 0; x < cols; x++) {
@@ -402,6 +545,10 @@ registerVisual("gameOfLifeSVG", {
           alive[i] = 1;
           color[i] = hexToRgbInt(state.paintColor);
         }
+      } else if (state.mode === "protofield") {
+        const nextAlive = alive[i] ? 0 : 1;
+        alive[i] = nextAlive;
+        setProtoAt(i, nextAlive === 1);
       } else {
         alive[i] = alive[i] ? 0 : 1;
       }
@@ -426,6 +573,9 @@ registerVisual("gameOfLifeSVG", {
       if (state.mode === "color") {
         if (event.shiftKey) alive[i] = 0;
         else { alive[i] = 1; color[i] = hexToRgbInt(state.paintColor); }
+      } else if (state.mode === "protofield") {
+        alive[i] = 1;
+        setProtoAt(i, true);
       } else {
         alive[i] = 1;
       }
@@ -458,12 +608,28 @@ registerVisual("gameOfLifeSVG", {
       if (state.running) startLoop();
       else stopLoop();
 
+      if (state.mode === "protofield") {
+        const thresholdsChanged =
+          prev.protoThreshMin !== state.protoThreshMin ||
+          prev.protoThreshMax !== state.protoThreshMax;
+        if (prev.mode !== "protofield") {
+          seedProtoFromAlive(state.protoNoise);
+          projectAliveFromProto();
+          draw();
+        } else if (thresholdsChanged) {
+          projectAliveFromProto();
+          draw();
+        }
+      }
+
       prev = {
         cellPx: state.cellPx,
         wrapEdges: state.wrapEdges,
         mode: state.mode,
         paintColor: state.paintColor,
-        strokeColor:state.strokeColor
+        strokeColor: state.strokeColor,
+        protoThreshMin: state.protoThreshMin,
+        protoThreshMax: state.protoThreshMax
       };
     }
 

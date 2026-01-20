@@ -1205,6 +1205,7 @@ registerVisual("bacteriaMinimal", {
 });
 
 const INITIAL_STATE = {
+  shouldRender: false,
   __xf: {
     ui: {
       preset: "kaleidoscope4",
@@ -1260,6 +1261,7 @@ async function loadPresetSettings(fileName) {
     const res = await fetch(fileName, { cache: "no-cache" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const settings = await res.json();
+    settings.shouldRender = true;
     startBacteriaApp(settings);
   } catch (err) {
     console.error(err);
@@ -1269,6 +1271,7 @@ async function loadPresetSettings(fileName) {
 
 function wirePresetButtons() {
   const presets = [
+    { id: "preset-default", file: "bacteriaDefault.settings.json" },
     { id: "preset-cluster", file: "clusterColor.json" },
     { id: "preset-gradiant", file: "gradiant.json" },
     { id: "preset-shimmer", file: "shimmer.json" },
@@ -1279,7 +1282,7 @@ function wirePresetButtons() {
     if (!btn) return;
     btn.addEventListener("click", () => loadPresetSettings(file));
   });
-  loadPresetSettings("clusterColor.json");
+  loadPresetSettings("bacteriaDefault.settings.json");
 }
 
 document.addEventListener("DOMContentLoaded", () => {

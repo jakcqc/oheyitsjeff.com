@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Bacteria</title>
+  <title>Domain Coloring</title>
   <meta name="color-scheme" content="light dark">
   <meta name="viewport"
         content="viewport-fit=cover,width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
@@ -13,7 +13,7 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Alata&amp;family=Courier+Prime:wght@700&amp;family=Kosugi+Maru&amp;family=Kumbh+Sans&amp;family=Scheherazade:wght@700&amp;display=swap" rel="stylesheet">
 
-  <script type="module" src="./bacteriaVisualizer.js"></script>
+  <script type="module" src="./domainColoring.js"></script>
 </head>
 
 <body>
@@ -21,15 +21,16 @@
     <button id="button-exit" onclick="goTo('../')">X</button>
     <button id="button-info">INFO</button>
     <button id="button-toggle">&lt;&gt;</button>
-    Interference
+    Domain Coloring
   </div>
 
   <div id="preset-bar">
-    <span>Load presets:</span>
+    <span>Popular picks:</span>
     <button id="preset-default" class="btn-inline">Default</button>
-    <button id="preset-cluster" class="btn-inline">Cluster Color</button>
-    <button id="preset-gradiant" class="btn-inline">Gradiant</button>
-    <button id="preset-shimmer" class="btn-inline">Shimmer</button>
+    <button id="preset-z2" class="btn-inline">Z^2</button>
+    <button id="preset-reciprocal" class="btn-inline">1/Z</button>
+    <button id="preset-exp" class="btn-inline">exp</button>
+    <button id="preset-sin" class="btn-inline">sin</button>
   </div>
 
   <div id="config"></div>
@@ -40,19 +41,4 @@
     </div>
   </div>
 </body>
-<script>
-  document.getElementById("button-info").onclick = () => {
-    const el = document.getElementById("config");
-    el.style.display = (el.style.display === "none") ? "block" : "none";
-  };
-  const toggleBtn = document.getElementById("button-toggle");
-  const presetBar = document.getElementById("preset-bar");
-  if (toggleBtn && presetBar) {
-    toggleBtn.onclick = () => {
-      const isShown = presetBar.classList.toggle("show");
-      presetBar.style.display = isShown ? "flex" : "none";
-      toggleBtn.setAttribute("aria-pressed", String(isShown));
-    };
-  }
-</script>
 </html>

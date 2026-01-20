@@ -35,8 +35,17 @@
       /* padding-top: 10px; */
       text-align: center;
       /* font-size: x-large; */
+      position: relative;
     }
     #infoBar.hidden{
+      height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-bottom: 0;
+      overflow: visible;
+      color: transparent;
+    }
+    #infoBar.hidden > *:not(#button-exit){
       display: none;
     }
     #infoBar button {
@@ -45,6 +54,37 @@
   border-color: white;
   z-index: 10000;
 }
+    #nav-hotspot{
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 56px;
+      height: 56px;
+      z-index: 10001;
+      display: none;
+      pointer-events: none;
+      background: transparent;
+    }
+    body.nav-hidden #nav-hotspot{
+      display: block;
+      pointer-events: auto;
+    }
+    body.nav-hidden #infoBar #button-exit{
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+      z-index: 10002;
+    }
+    body.nav-hidden #nav-hotspot:hover ~ #infoBar #button-exit,
+    body.nav-hidden #infoBar #button-exit:hover{
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
 #title{
     color: white;
     font-size: 30px;
@@ -54,6 +94,8 @@
   }
   #preset-bar{
     display: none;
+    position: relative;
+    z-index: 200;
     align-items: center;
     justify-content: center;
     gap: 8px;
@@ -62,6 +104,9 @@
     border-bottom: 2px solid rgb(255, 254, 180);
     color: white;
     flex-wrap: wrap;
+  }
+  #preset-bar.show{
+    display: flex;
   }
   #preset-bar button{
     background: #161616;
@@ -293,6 +338,32 @@ input[type="range"] {
   background: transparent;
   padding-top: 0;
 }
+.fx-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fx-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fx-msg {
+  font-size: 12px;
+  color: #c9c9c9;
+}
+.fx-msg.error {
+  color: #ffb3b3;
+}
+.fx-keywords {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 4px 10px;
+  margin-top: 6px;
+}
+.fx-key {
+  font-weight: 600;
+}
 .vr-ioToggle {
   appearance: none;
   border: 2px solid #ffffff;
@@ -366,9 +437,6 @@ bottom: 30px;
       font-weight: bold;
       padding-left: 6px;
       padding-right: 6px;
-    }
-    #preset-bar.show{
-      display: flex;
     }
     button:hover{
       border-radius: 10px;

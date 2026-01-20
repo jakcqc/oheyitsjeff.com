@@ -165,6 +165,7 @@ export function ensureTransformState(state) {
   if (ui.planeOpacityFalloff == null) ui.planeOpacityFalloff = 0.12;
   ui.planeOffset = ensureVector2(ui.planeOffset, { x: 0, y: 0 });
   ui.planeCenter = ensureVector2(ui.planeCenter, { x: NaN, y: NaN });
+  if (!ui.groupOpen || typeof ui.groupOpen !== "object") ui.groupOpen = {};
 
   if (!Array.isArray(state.__xf.stack)) state.__xf.stack = [];
 }
@@ -195,8 +196,9 @@ function buildTransformPresetStack(presetName) {
   return null;
 }
 
-export function buildTransformPanel({ mountEl, state, xfRuntime }) {
+export function buildTransformPanel({ mountEl, state, xfRuntime, onStateChange }) {
   ensureTransformState(state);
+  const markDirty = () => onStateChange?.();
 
   const root = document.createElement("div");
   root.className = "xf-panel";
@@ -422,11 +424,18 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
 
     const controls = document.createElement("div");
     const groups = new Map();
+    const groupOpen = state.__xf.ui.groupOpen;
     const getGroup = (name) => {
       if (!groups.has(name)) {
-        const wrap = el("details", { className: "vr-paramGroup", open: true });
+        const storedOpen = groupOpen[name];
+        const isOpen = typeof storedOpen === "boolean" ? storedOpen : false;
+        const wrap = el("details", { className: "vr-paramGroup", open: isOpen });
         const summary = el("summary", { className: "vr-paramGroupTitle", textContent: name });
         const body = el("div", { className: "vr-paramGroupBody" });
+        wrap.addEventListener("toggle", () => {
+          groupOpen[name] = wrap.open;
+          markDirty();
+        });
         wrap.appendChild(summary);
         wrap.appendChild(body);
         groups.set(name, { wrap, body });
@@ -663,6 +672,7 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
       `effective split: ${effectiveSplit} | stack ops: ${state.__xf.stack.length} | ` +
       (targets == null ? "targets: all" : `targets: ${targets.join(",") || "(none)"}`);
     root.appendChild(status);
+    markDirty();
   };
 
   render();
@@ -670,8 +680,8 @@ export function buildTransformPanel({ mountEl, state, xfRuntime }) {
 }
 
 export function registerTransformTab() {
-  registerTab("transforms", ({ mountEl, state, xfRuntime }) =>
-    buildTransformPanel({ mountEl, state, xfRuntime })
+  registerTab("transforms", ({ mountEl, state, xfRuntime, onStateChange }) =>
+    buildTransformPanel({ mountEl, state, xfRuntime, onStateChange })
   );
   
 }

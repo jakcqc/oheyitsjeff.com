@@ -14,6 +14,18 @@ registerVisual("mandelTilingZoomable", {
       label: "Reset View",
       category: "View",
       onClick: ({ state, setByPath }) => {
+        if (state.fractal === "fordSpheres") {
+          setByPath(state, "view.centerRe", 0);
+          setByPath(state, "view.centerIm", 0.5);
+          setByPath(state, "view.spanRe", 2.5);
+          return;
+        }
+        if (state.fractal === "gaussianFordSpheres") {
+          setByPath(state, "view.centerRe", 0);
+          setByPath(state, "view.centerIm", 0);
+          setByPath(state, "view.spanRe", 2.5);
+          return;
+        }
         setByPath(state, "view.centerRe", -0.5);
         setByPath(state, "view.centerIm", 0);
         setByPath(state, "view.spanRe", 2.5);
@@ -29,7 +41,9 @@ registerVisual("mandelTilingZoomable", {
         "julia",
         "burningShip",
         "tricorn",
-        "multibrot"
+        "multibrot",
+        "fordSpheres",
+        "gaussianFordSpheres"
       ],
       description: "Which fractal formula to use for iteration."
     },
@@ -163,6 +177,26 @@ registerVisual("mandelTilingZoomable", {
       step: 0.25,
       description: "Exponent used in the Multibrot iteration (power > 2)."
     },
+    {
+      key: "ford.maxDenom",
+      type: "number",
+      default: 35,
+      category: "Ford",
+      min: 3,
+      max: 200,
+      step: 1,
+      description: "Largest denominator used for Ford circle sampling."
+    },
+    {
+      key: "ford.gaussianMaxNorm",
+      type: "number",
+      default: 25,
+      category: "Ford",
+      min: 2,
+      max: 120,
+      step: 1,
+      description: "Max norm (a^2 + b^2) for Gaussian denominators."
+    },
   ],
 
 
@@ -179,6 +213,17 @@ registerVisual("mandelTilingZoomable", {
     const g = svg.append("g");
     const color = d3.scaleSequential(d3.interpolateTurbo);
     const FRACTAL_ITERS = Object.create(null);
+    const gcd = (a, b) => {
+      let x = Math.abs(a);
+      let y = Math.abs(b);
+      while (y) {
+        const t = x % y;
+        x = y;
+        y = t;
+      }
+      return x;
+    };
+    const gcd4 = (a, b, c, d) => gcd(gcd(a, b), gcd(c, d));
     FRACTAL_ITERS.mandelbrot = function (cr, ci, maxIter, state) {
       let zr = 0, zi = 0;
       for (let i = 0; i < maxIter; i++) {
@@ -250,6 +295,82 @@ registerVisual("mandelTilingZoomable", {
       if (zr * zr + zi * zi > 4) return i;
     }
     return maxIter;
+  };
+
+  FRACTAL_ITERS.fordSpheres = function (cr, ci, maxIter, state) {
+    if (ci <= 0) return 0;
+    const maxDen = Math.max(2, Math.floor(state.ford.maxDenom || 30));
+    let bestIter = 0;
+
+    for (let b = 1; b <= maxDen; b++) {
+      const a0 = Math.round(cr * b);
+      const r = 0.5 / (b * b);
+      const r2 = r * r;
+      for (let da = -1; da <= 1; da++) {
+        const a = a0 + da;
+        if (gcd(a, b) !== 1) continue;
+        const cx = a / b;
+        const dx = cr - cx;
+        const dy = ci - r;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= r2) return maxIter;
+        const t = r2 / d2;
+        const it = Math.floor(maxIter * t);
+        if (it > bestIter) bestIter = it;
+      }
+    }
+    return bestIter;
+  };
+
+  let gaussianDenoms = [];
+  let gaussianMaxNorm = 0;
+  function updateGaussianDenoms(state) {
+    const target = Math.max(2, Math.floor(state.ford.gaussianMaxNorm || 20));
+    if (target === gaussianMaxNorm) return;
+    gaussianMaxNorm = target;
+    const list = [];
+    const limit = Math.floor(Math.sqrt(gaussianMaxNorm));
+    for (let bi = -limit; bi <= limit; bi++) {
+      for (let bj = -limit; bj <= limit; bj++) {
+        const norm = bi * bi + bj * bj;
+        if (norm < 1 || norm > gaussianMaxNorm) continue;
+        if (gcd(bi, bj) !== 1) continue;
+        if (bi < 0 || (bi === 0 && bj < 0)) continue;
+        list.push({ bi, bj, norm });
+      }
+    }
+    gaussianDenoms = list;
+  }
+
+  FRACTAL_ITERS.gaussianFordSpheres = function (cr, ci, maxIter, state) {
+    updateGaussianDenoms(state);
+    let bestIter = 0;
+    for (const { bi, bj, norm } of gaussianDenoms) {
+      const wr = cr * bi - ci * bj;
+      const wi = cr * bj + ci * bi;
+      const ar0 = Math.round(wr);
+      const ai0 = Math.round(wi);
+      const r = 0.5 / norm;
+      const r2 = r * r;
+
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let di = -1; di <= 1; di++) {
+          const ar = ar0 + dr;
+          const ai = ai0 + di;
+          if (gcd4(ar, ai, bi, bj) !== 1) continue;
+          const cx = (ar * bi + ai * bj) / norm;
+          const cy = (ai * bi - ar * bj) / norm;
+          const dx = cr - cx;
+          const dy = ci - cy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= r2) return maxIter;
+          const t = r2 / d2;
+          const it = Math.floor(maxIter * t);
+          if (it > bestIter) bestIter = it;
+        }
+      }
+    }
+    return bestIter;
   };
   let activeIter = FRACTAL_ITERS[state.fractal];
 
@@ -345,6 +466,9 @@ registerVisual("mandelTilingZoomable", {
     function render({ fast = false } = {}) {
       g.selectAll("*").remove();
     activeIter = FRACTAL_ITERS[state.fractal];
+      if (state.fractal === "gaussianFordSpheres") {
+        updateGaussianDenoms(state);
+      }
       const nextSize = size();
       lastSize = nextSize;
       const width = lastSize.width;

@@ -215,58 +215,36 @@ const dragBehavior = d3.drag()
     .call(dragBehavior);
 
   // Draw the bubbles
-  node.append("circle")
-    .attr("r", d => d.r)
+  node.append("rect")
+    .attr("x", d => -d.r)
+    .attr("y", d => -d.r)
+    .attr("width", d => d.r * 2)
+    .attr("height", d => d.r * 2)
     .attr("fill", d => `url(#imgpat-${d.title.replace(/\s/g, "")})`)
     .attr("stroke", "var(--bubble-stroke)")
     .attr("stroke-width", "4px")
-    .style("filter", "drop-shadow(0 2px 16px var(--bubble-glow))");
-  node.append("circle")
-    .attr("r", d => d.r - 5)
+    .style("filter", "drop-shadow(0 2px 5px var(--bubble-glow))");
+  node.append("rect")
+    .attr("x", d => -d.r + 5)
+    .attr("y", d => -d.r + 5)
+    .attr("width", d => d.r * 2 - 10)
+    .attr("height", d => d.r * 2 - 10)
     .attr("fill", "none")
     .attr("stroke", "var(--bubble-highlight)")
     .attr("stroke-width", "3px")
-    .style("filter", "drop-shadow(0 4px 22px var(--bubble-glow-soft))");
+    .style("filter", "drop-shadow(0 2px 5px var(--bubble-glow-soft))");
 
-    node.each(function(d, i) {
-      const g = d3.select(this);
-    
-      // Create a unique path for each bubble
-      const arcId = `bubbleArc-${i}`;
-      const r = d.r + 12; // arc radius, slightly larger than bubble for outside
-    
-      // Add path for text arc in defs
-      svg.append("defs")
-        .append("path")
-        .attr("id", arcId)
-        .attr("d", describeArc(0, 0, r, 90, 270)); // semi-circle on top
-   
-
-      // Draw white strip for the arc
-      g.append("path")
-        .attr("d", describeArc(0, 0, r, -90, 270))
-        .attr("fill", "none")
-        .attr("stroke", "var(--bubble-highlight)")
-        .attr("stroke-opacity", 0.45)  // also make it a bit translucent
-        .attr("stroke-width", textRadius) // thickness of the white strip
-        .style("filter", "drop-shadow(1 2px 6px var(--bubble-glow-soft))"); // optional shadow
-    
-      // Add the text along the arc
-      g.append("text")
-        .attr("dy", 6) // vertical offset, adjust as needed
-        .append("textPath")
-        .style("user-select", "none")          // standard
-  .style("-webkit-user-select", "none")  // Safari
-  .style("-moz-user-select", "none")     // Firefox
-  .style("-ms-user-select", "none")      // IE10+
-        .attr("xlink:href", `#${arcId}`)
-        .attr("startOffset", "50%") // center the text
-        .style("text-anchor", "middle")
-        .style("font-size", "1.0rem")
-        .style("fill", "var(--bubble-text)")
-        .style("font-family", "inherit")
-        .text(d.title);
-    });
+  node.append("text")
+    .attr("y", d => d.r + textRadius * 0.6)
+    .style("user-select", "none")          // standard
+    .style("-webkit-user-select", "none")  // Safari
+    .style("-moz-user-select", "none")     // Firefox
+    .style("-ms-user-select", "none")      // IE10+
+    .style("text-anchor", "middle")
+    .style("font-size", "1.0rem")
+    .style("fill", "var(--bubble-text)")
+    .style("font-family", "inherit")
+    .text(d => d.title);
     function ticked() {
   node.attr("transform", d => {
     
@@ -353,108 +331,59 @@ function gradientAnimation() {
 }
 const projects = shuffle([
   {
-    title: "Mondrian Abstraction 3D",
-    image: "assets/Images/monder3D.jpg",
-    description: "Ever wonder what A Mondrian Composition would like look like in 3D?",
-    link: "/MondrianAbstractionV2/Viewer3D/"
+    title: "Lissajous Figures",
+    image: "/MathVisuals/assets/math8.png",
+    description: "Parametric sine curves that weave into looping flower-like forms.",
+    link: "/LissajousFigures/"
   },
   {
-    title: "Particle_Explorer",
-    image: "assets/Images/stars.jpg",
-    description: "Watch Life emerge or fade using particle interactions.",
-    link: "/ParticleExplorer/"
+    title: "Fractal Polyhedra",
+    image: "/MathVisuals/assets/math4.png",
+    description: "Recursive polyhedral forms with crystalline self-similarity.",
+    link: "/FractalPolyhedra/"
   },
   {
-    title: "InnerLight",
-    image: "assets/Images/idleGame.png",
-    description: "Small shape-based visualizations that use color changes and spatial differences. Have fun...",
-    link: "/InnerLight/"
+    title: "SURFER Gallery",
+    image: "/MathVisuals/assets/math2.png",
+    description: "Implicit algebraic surfaces rendered as sculptural contours.",
+    link: "/SurferGalleryBiancaViolet/"
   },
   {
-    title: "Mondrian Abstraction",
-    image: "assets/Images/monder.jpg",
-    description: "A fun take on the popular Mondrian Compositions, a play on light and overlaps.",
-    link: "/MondrianAbstraction/"
+    title: "Boys Surface Model",
+    image: "/MathVisuals/assets/math9.png",
+    description: "Twisted ribbon immersions inspired by the projective plane.",
+    link: "/BoysSurfaceModel/"
   },
   {
-    title: "Energy_Explorer",
-    image: "assets/Images/eng.jpg",
-    description: "Voxel space energy representations, with continuous particles under the hood.",
-    link: "/EnergyExplorer/"
-  },
-  //  {
-  //   title: "GeoSpace",
-  //   image: "assets/Images/geoLife.jpg",
-  //   description: "A fully randomized partical sim with various indepedent particle groups...",
-  //   link: "/GeoSpace/"
-  // },
-  {
-    title: "Discrete_Fractals",
-    image: "assets/Images/InnerLight.png",
-    description: "Discrete fractals like the Mandelbrot, Julia, multibrot, etc are plotted using different shapes and convergence.",
-    link: "/Generic/"
-  },
-  {
-    title: "Domain_Coloring",
-    image: "assets/Images/coloring.png",
-    description: "Domain coloring for popular complex functions with adjustable color guides.",
-    link: "/DomainColoring/"
-  },
-  {
-    title: "GameOfLife??",
-    image: "assets/Images/gameOfLife0.webp",
-    description: "The game of life is a cellular automata simulation. Different dense neighbourhood functions are used in this case.",
-    link: "/GameOfLife_aug/"
-  },
-  {
-    title: "Interference",
-    image: "assets/Images/bacteria.png",
-    description: "A mess of interference circles that have bacteria like movement",
-    link: "/BacteriaVisualizer/"
-  },
-  {
-    title: "Kakeya!!",
-    image: "assets/Images/kakaya.png",
-    description: "The collatz conjecture about sequences leverages Kakaya sets, which are sets made from line segments!",
-    link: "/kakeya/"
-  },
-  {
-    title: "Voronoi_Point_Ani",
-    image: "assets/Images/voro.png",
-    description: "Voronoi diagrams that move and grow. Fractal like patterns emerge. ",
-    link: "/Voronoi/"
-  },
-  {
-    title: "Math Visuals",
+    title: "Quasicrystalline Wickerwork",
     image: "/MathVisuals/assets/math.png",
-    description: "A dedicated gallery of the new math visualization set.",
-    link: "/MathVisuals/"
+    description: "Aperiodic lattices woven into star-like radial patterns.",
+    link: "/QuasicrystallineWickerwork/"
   },
-  // {
-  //   title: "LSystem_Garden",
-  //   image: "assets/Images/stars.jpg",
-  //   description: "Grow recursive plant grammars and tweak every branch with live SVG controls.",
-  //   link: "/LSystemGarden/"
-  // },
-  // {
-  //   title: "SVG_Wall",
-  //   image: "assets/Images/InnerLight.png",
-  //   description: "A live gallery that streams every SVG from the CDN art vault.",
-  //   link: "/SvgGallery/"
-  // },
-  // {
-  //   title: "SVG_Playground",
-  //   image: "assets/Images/stars.jpg",
-  //   description: "Drag, duplicate, and style SVG shapes with tiling and kaleidoscope modes.",
-  //   link: "/SvgPlayground/"
-  // },
-  // {
-  //   title: "Equation_Visualizer",
-  //   image: "assets/Images/eng.jpg",
-  //   description: "Starter SVG grid for building equation-driven visuals + neighborhood transforms.",
-  //   link: "/EquationVisualizer/"
-  // }
-
+  {
+    title: "Lorenz Attractor",
+    image: "/MathVisuals/assets/math3.png",
+    description: "Chaotic butterfly trajectories drawn as glowing streams.",
+    link: "/LorenzAttractor/"
+  },
+  {
+    title: "Herwig Hauser Classic",
+    image: "/MathVisuals/assets/math7.png",
+    description: "Classic algebraic surfaces with cusps, folds, and smooth manifolds.",
+    link: "/HerwigHauserClassicCollection/"
+  },
+  {
+    title: "Oliver Labs Collection",
+    image: "/MathVisuals/assets/math6.png",
+    description: "Algorithmic structures shaped by procedural flow fields.",
+    link: "/OliverLabsCollection/"
+  },
+  {
+    title: "P.S.G.H Collection",
+    image: "/MathVisuals/assets/math5.png",
+    description: "Mesh curvature studies with smooth geometric transitions.",
+    link: "/PinkallSchmittGunnHoffmannCollection/"
+  }
 ]);
 // document.addEventListener("DOMContentLoaded", function() {
 //   width = window.innerWidth;

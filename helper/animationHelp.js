@@ -90,8 +90,8 @@ export function maybeAutoplayAnimation({ mountEl, state, onChange }) {
 }
 
 export function registerAnimateTab() {
-  registerTab("animate", ({ mountEl, state, spec, xfRuntime, onChange }) =>
-    buildAnimatePanel({ mountEl, state, spec, xfRuntime, onChange })
+  registerTab("animate", ({ mountEl, state, spec, xfRuntime, onChange, onStateChange }) =>
+    buildAnimatePanel({ mountEl, state, spec, xfRuntime, onChange, onStateChange })
   );
 }
 
@@ -405,9 +405,10 @@ function numericParamKeys(spec) {
   return out;
 }
 
-export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime }) {
+export function buildAnimatePanel({ mountEl, state, spec, onChange, onStateChange, xfRuntime }) {
   ensureAnimateState(state);
   const ui = state.__anim.ui;
+  const markDirty = () => onStateChange?.();
 
   // Normalize to "params" by default
   if (ui.targetType !== "svg") ui.targetType = "params";
@@ -449,6 +450,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
 
   const setUi = (k, v) => {
     ui[k] = v;
+    markDirty();
     refresh();
   };
 
@@ -486,6 +488,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
     ui.paramTargets.push({ key: k, from: ui.autoFromCurrent ? cur : 0, to: ui.autoFromCurrent ? cur : 10 });
     cleanTargets(ui);
     addSel.value = "";
+    markDirty();
     refresh();
   };
 
@@ -527,6 +530,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
         fromInput.value = String(cur);
         targets[idx].from = cur;
         ui.paramTargets = targets;
+        markDirty();
         refresh();
       };
 
@@ -538,6 +542,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
         toInput.value = String(cur);
         targets[idx].to = cur;
         ui.paramTargets = targets;
+        markDirty();
         refresh();
       };
 
@@ -572,6 +577,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
         targets.splice(idx, 1);
         ui.paramTargets = targets;
         cleanTargets(ui);
+        markDirty();
         refresh();
       };
 
@@ -580,16 +586,19 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
         targets[idx].key = String(keyInput.value || "").trim();
         ui.paramTargets = targets;
         cleanTargets(ui);
+        markDirty();
         refresh();
       };
       fromInput.onblur = () => {
         targets[idx].from = clampNum(fromInput.value, targets[idx].from ?? 0);
         ui.paramTargets = targets;
+        markDirty();
         refresh();
       };
       toInput.onblur = () => {
         targets[idx].to = clampNum(toInput.value, targets[idx].to ?? 0);
         ui.paramTargets = targets;
+        markDirty();
         refresh();
       };
 
@@ -621,15 +630,15 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
 
   // --- SVG targeting ---
   const selInput = el("input", { type: "text", value: ui.selector || "svg", placeholder: 'CSS selector (e.g. "circle", "g#layer rect")' });
-  selInput.onblur = () => { ui.selector = selInput.value; refresh(); };
+  selInput.onblur = () => { ui.selector = selInput.value; markDirty(); refresh(); };
 
   const svgKind = el("select");
   ["attr", "style"].forEach(opt => svgKind.appendChild(el("option", { value: opt, textContent: opt })));
   svgKind.value = ui.svgKind || "attr";
-  svgKind.onchange = () => { ui.svgKind = svgKind.value; refresh(); };
+  svgKind.onchange = () => { ui.svgKind = svgKind.value; markDirty(); refresh(); };
 
   const svgName = el("input", { type: "text", value: ui.svgName || "opacity", placeholder: "attr/style name (e.g. opacity, r, x, strokeWidth)" });
-  svgName.onblur = () => { ui.svgName = svgName.value; refresh(); };
+  svgName.onblur = () => { ui.svgName = svgName.value; markDirty(); refresh(); };
 
   // --- Shared timing controls ---
   const durInput = el("input", { type: "number", step: "0.01", min: "0.01", value: String(ui.durationSec ?? 3) });
@@ -661,6 +670,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
       t.from = cur;
     }
     ui.paramTargets = targets;
+    markDirty();
     refresh();
   };
 
@@ -672,6 +682,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
       t.to = cur;
     }
     ui.paramTargets = targets;
+    markDirty();
     refresh();
   };
 
@@ -689,6 +700,7 @@ export function buildAnimatePanel({ mountEl, state, spec, onChange, xfRuntime })
     ui.yoyo = !!yoyoCb.checked;
     ui.autoFromCurrent = !!autoFromCb.checked;
     ui.snapToEndOnStop = !!snapCb.checked;
+    markDirty();
 
     // clean targets before play
     cleanTargets(ui);

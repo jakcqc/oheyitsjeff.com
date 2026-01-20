@@ -9,13 +9,44 @@ import { applyPropOpsToSubtree, applyScriptOpsToSubtree } from "../helper/svgEdi
 import { registerPropOpsTab, registerScriptOpsTab } from "../helper/svgEditor.js";
 import { registerAnimateTab, maybeAutoplayAnimation } from "../helper/animationHelp.js";
 import { registerLLMTab } from "../helper/llmTab.js";
+import { registerEffectsTab, applyEffectsToSubtree } from "../helper/effectsHelp.js";
+import { registerColorTab, applyColorToSubtree } from "../helper/colorHelp.js";
 
 const TAB_BUILDERS = new Map();
+let ACTIVE_UNDO_CONTEXT = null;
+let undoListenerAttached = false;
+
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (target.isContentEditable) return true;
+  return !!target.closest?.("[contenteditable=\"true\"]");
+}
+
+function handleUndoKeydown(event) {
+  if (!ACTIVE_UNDO_CONTEXT) return;
+  if (event.defaultPrevented) return;
+  if (event.shiftKey) return;
+  if (!(event.ctrlKey || event.metaKey)) return;
+  if (String(event.key).toLowerCase() !== "z") return;
+  if (isEditableTarget(event.target)) return;
+  const didUndo = ACTIVE_UNDO_CONTEXT.undo?.();
+  if (didUndo) event.preventDefault();
+}
+
+function setActiveUndoContext(ctx) {
+  ACTIVE_UNDO_CONTEXT = ctx;
+  if (!undoListenerAttached && typeof window !== "undefined") {
+    window.addEventListener("keydown", handleUndoKeydown);
+    undoListenerAttached = true;
+  }
+}
 
 /**
  * Register a tab builder that will appear alongside the built-in "params" tab.
  * @param {string} tabName
- * @param {(ctx: { mountEl: HTMLElement, spec: any, state: any, xfRuntime: any, onChange?: Function }) => HTMLElement} build
+ * @param {(ctx: { mountEl: HTMLElement, spec: any, state: any, xfRuntime: any, onChange?: Function, onStateChange?: Function }) => HTMLElement} build
  */
 export function registerTab(tabName, build) {
   if (!tabName) throw new Error("registerTab: tabName is required");
@@ -38,9 +69,178 @@ registerPropOpsTab();
 registerScriptOpsTab();
 registerAnimateTab();
 registerLLMTab();
+registerEffectsTab();
+registerColorTab();
 
 export function exportStateToJSON(state) {
-  return JSON.stringify(state, null, 2);
+  return stringifyState(state, true);
+}
+
+const SETTINGS_CACHE_PREFIX = "visualHelp.settings.v1:";
+const UI_CACHE_PREFIX = "visualHelp.ui.v1:";
+
+function readCache(key) {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    return localStorage.getItem(key);
+  } catch (err) {
+    console.warn("visualHelp: cache read failed", err);
+    return null;
+  }
+}
+
+function writeCache(key, value) {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    console.warn("visualHelp: cache write failed", err);
+    return false;
+  }
+}
+
+function removeCache(key) {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (err) {
+    console.warn("visualHelp: cache remove failed", err);
+    return false;
+  }
+}
+
+function getSettingsCacheKey(visualId) {
+  return `${SETTINGS_CACHE_PREFIX}${visualId}`;
+}
+
+function getUiCacheKey(visualId) {
+  return `${UI_CACHE_PREFIX}${visualId}`;
+}
+
+function loadSettingsCache(visualId) {
+  if (!visualId) return null;
+  const raw = readCache(getSettingsCacheKey(visualId));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (err) {
+    console.warn("visualHelp: cache parse failed", err);
+    return null;
+  }
+}
+
+function saveSettingsCache(visualId, state) {
+  if (!visualId) return false;
+  return writeCache(getSettingsCacheKey(visualId), stringifyState(state));
+}
+
+function clearSettingsCache(visualId) {
+  if (!visualId) return false;
+  return removeCache(getSettingsCacheKey(visualId));
+}
+
+function loadUiCache(visualId) {
+  if (!visualId) return null;
+  const raw = readCache(getUiCacheKey(visualId));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (err) {
+    console.warn("visualHelp: ui cache parse failed", err);
+    return null;
+  }
+}
+
+function saveUiCache(visualId, uiState) {
+  if (!visualId || !uiState) return false;
+  return writeCache(getUiCacheKey(visualId), JSON.stringify(uiState));
+}
+
+function clearUiCache(visualId) {
+  if (!visualId) return false;
+  return removeCache(getUiCacheKey(visualId));
+}
+
+const HISTORY_STACK_LIMIT = 100;
+
+function stringifyState(state, pretty = false) {
+  return JSON.stringify(
+    state,
+    (key, value) => (key === "__history" ? undefined : value),
+    pretty ? 2 : 0
+  );
+}
+
+function ensureStateHistory(state) {
+  if (!state.__history || typeof state.__history !== "object") {
+    state.__history = {
+      past: [],
+      future: [],
+      last: null,
+      limit: HISTORY_STACK_LIMIT,
+      suspend: 0,
+    };
+  }
+  const history = state.__history;
+  if (!Array.isArray(history.past)) history.past = [];
+  if (!Array.isArray(history.future)) history.future = [];
+  if (!Number.isFinite(history.limit)) history.limit = HISTORY_STACK_LIMIT;
+  if (!Number.isFinite(history.suspend)) history.suspend = 0;
+  return history;
+}
+
+function getHistorySnapshot(state) {
+  try {
+    return stringifyState(state, false);
+  } catch (err) {
+    console.warn("visualHelp: history snapshot failed", err);
+    return null;
+  }
+}
+
+function recordHistory(state, history) {
+  if (!history || history.suspend > 0) return;
+  const next = getHistorySnapshot(state);
+  if (!next) return;
+  if (history.last == null) {
+    history.last = next;
+    return;
+  }
+  if (next === history.last) return;
+  history.past.push(history.last);
+  if (history.past.length > history.limit) history.past.shift();
+  history.future.length = 0;
+  history.last = next;
+}
+
+function applyHistorySnapshot(state, history, snapshot) {
+  if (!snapshot) return false;
+  let nextState = null;
+  try {
+    nextState = JSON.parse(snapshot);
+  } catch (err) {
+    console.warn("visualHelp: history restore failed", err);
+    return false;
+  }
+  const preservedHistory = history;
+  replaceStateContents(state, nextState);
+  if (preservedHistory) state.__history = preservedHistory;
+  if (history) history.last = snapshot;
+  return true;
+}
+
+function withHistorySuspended(history, fn) {
+  if (!history) return fn();
+  history.suspend += 1;
+  try {
+    return fn();
+  } finally {
+    history.suspend = Math.max(0, history.suspend - 1);
+  }
 }
 export function getVisualParamsTree(spec, state) {
   const out = {};
@@ -77,6 +277,13 @@ function mergeInto(target, source) {
       target[key] = value;
     }
   }
+}
+
+function replaceStateContents(target, nextState) {
+  for (const key of Object.keys(target)) {
+    delete target[key];
+  }
+  Object.assign(target, nextState);
 }
 
 export function makeSaveSettingsButton(state, visualId) {
@@ -133,17 +340,19 @@ export function mountUserTabs({
   onChange,
   buildParamsPanel,   // () => HTMLElement
   extraTabs = {},     // { tabName: () => HTMLElement }
+  onUiChange,
 }) {
   const tabs = ["params", ...Object.keys(extraTabs)];
-  let activeTab = "params";
+  const uiState = state?.__ui || {};
+  if (state && !state.__ui) state.__ui = uiState;
+  if (uiState.tabsOpen === undefined) uiState.tabsOpen = false;
+  if (uiState.activeTab == null) uiState.activeTab = "params";
+  let activeTab = tabs.includes(uiState.activeTab) ? uiState.activeTab : "params";
 
   const tabBar = el("div", { className: "vr-tabs" });
   const body = el("div", { className: "vr-tabBody" });
   const layout = el("div", { className: "vr-tabLayout" });
   const tabCol = el("div", { className: "vr-tabCol" });
-  const uiState = state?.__ui || {};
-  if (state && !state.__ui) state.__ui = uiState;
-  if (uiState.tabsOpen === undefined) uiState.tabsOpen = true;
 
   const tabToggle = el("button", {
     className: "vr-tabsToggle",
@@ -154,11 +363,18 @@ export function mountUserTabs({
     uiState.tabsOpen = !uiState.tabsOpen;
     tabToggle.textContent = uiState.tabsOpen ? "-" : "+";
     tabBar.classList.toggle("hidden", !uiState.tabsOpen);
+    onUiChange?.();
   };
 
   const render = () => {
     tabBar.innerHTML = "";
     body.innerHTML = "";
+
+    if (!tabs.includes(activeTab)) {
+      activeTab = "params";
+      uiState.activeTab = activeTab;
+      onUiChange?.();
+    }
 
     for (const name of tabs) {
       const btn = el("button", {
@@ -167,6 +383,8 @@ export function mountUserTabs({
       });
       btn.onclick = () => {
         activeTab = name;
+        uiState.activeTab = name;
+        onUiChange?.();
         render();
       };
       tabBar.appendChild(btn);
@@ -194,6 +412,8 @@ export function mountAutoUI({
   spec,
   state,
   onChange,
+  onStateChange,
+  onUiChange,
   mountEl,
   xfRuntime,
 }) {
@@ -213,19 +433,28 @@ export function mountAutoUI({
     spec,
     state,
     onChange,
-    buildParamsPanel: () => buildParamsPanel({ spec, state, onChange }),
-    extraTabs: buildRegisteredTabs({ mountEl, spec, state, xfRuntime, onChange }),
+    buildParamsPanel: () => buildParamsPanel({ spec, state, onChange, onUiChange }),
+    extraTabs: buildRegisteredTabs({ mountEl, spec, state, xfRuntime, onChange, onStateChange }),
+    onUiChange,
   });
 
   return {
     state,
-    rerenderUI: () => mountAutoUI({ container, spec, state, onChange, mountEl, xfRuntime }),
+    rerenderUI: () =>
+      mountAutoUI({ container, spec, state, onChange, onStateChange, onUiChange, mountEl, xfRuntime }),
   };
 }
 
-function buildParamsPanel({ spec, state, onChange }) {
+function buildParamsPanel({ spec, state, onChange, onUiChange }) {
   const panel = document.createElement("div");
   const groups = new Map();
+  const uiState = state?.__ui || {};
+  if (state && !state.__ui) state.__ui = uiState;
+  if (!uiState.paramGroups || typeof uiState.paramGroups !== "object") {
+    uiState.paramGroups = {};
+  }
+  if (uiState.collapseParamsByDefault == null) uiState.collapseParamsByDefault = true;
+  const collapseByDefault = !!uiState.collapseParamsByDefault;
 
   for (const param of spec.params || []) {
     const rawCategory = typeof param.category === "string" ? param.category.trim() : "";
@@ -235,9 +464,16 @@ function buildParamsPanel({ spec, state, onChange }) {
   }
 
   for (const [category, params] of groups.entries()) {
-    const group = el("details", { className: "vr-paramGroup", open: true });
+    const storedOpen = uiState.paramGroups[category];
+    const isOpen = typeof storedOpen === "boolean" ? storedOpen : !collapseByDefault;
+    const group = el("details", { className: "vr-paramGroup", open: isOpen });
     const summary = el("summary", { className: "vr-paramGroupTitle", textContent: category });
     const body = el("div", { className: "vr-paramGroupBody" });
+
+    group.addEventListener("toggle", () => {
+      uiState.paramGroups[category] = group.open;
+      onUiChange?.();
+    });
 
     for (const param of params) {
       body.appendChild(buildControl({ param, state, onChange }));
@@ -276,6 +512,7 @@ function buildParamsPanel({ spec, state, onChange }) {
  * @property {string} description
  * @property {ParamSpec[]} params
  * @property {(ctx: { mountEl: HTMLElement }, state: any) => VisualInstance} create
+ * @property {any} [defaultState]          - Optional default state overrides (merged after param defaults)
  * @property {any} [data]                  - Whatever “data object” you want to store alongside params
  */
 
@@ -351,6 +588,7 @@ export function makeDefaultState(spec) {
   for (const p of spec.params || []) setByPath(state, p.key, clone(p.default));
   // attach arbitrary spec.data under a stable place if you want:
   if (spec.data !== undefined) state.__data = spec.data;
+  state.shouldRender = true;
     // --- transforms state (UI + stack) ---
   state.__xf = {
     ui: {
@@ -360,6 +598,9 @@ export function makeDefaultState(spec) {
     },
     stack: [],           // [{ kind, ...payload }]
   };
+  if (spec.defaultState && typeof spec.defaultState === "object") {
+    mergeInto(state, spec.defaultState);
+  }
 
   return state;
 }
@@ -371,6 +612,8 @@ export function mountVisualUI({
   mountEl,
   xfRuntime,
   instance,
+  runtimeRef,
+  ensureRuntime,
   visualId,
 }) {
   uiEl.innerHTML = "";
@@ -378,52 +621,221 @@ export function mountVisualUI({
   const autoUiEl = el("div", { className: "vr-autoUI" });
   const ioWrap = el("div", { className: "vr-settingsWrap" });
   const ioEl = el("div", { className: "vr-settingsIO" });
+  if (!state.__ui) state.__ui = {};
+  const history = ensureStateHistory(state);
+  history.suspend += 1;
+  let ioToggle = null;
+  let collapseDefaultsToggle = null;
+  const persistUiNow = () => {
+    if (!state?.__ui) return;
+    saveUiCache(visualId, state.__ui);
+  };
+  const persistSettings = (() => {
+    let timer = null;
+    const delayMs = 250;
+    return () => {
+      if (!visualId) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        saveSettingsCache(visualId, state);
+      }, delayMs);
+    };
+  })();
+  const record = () => recordHistory(state, history);
+  const handleUiChange = () => {
+    record();
+    persistUiNow();
+  };
+  const configEl = document.getElementById("config");
+  const infoBar = document.getElementById("infoBar");
+  if (infoBar?.parentNode) {
+    const existing = document.getElementById("nav-hotspot");
+    if (!existing) {
+      const navHotspot = document.createElement("div");
+      navHotspot.id = "nav-hotspot";
+      navHotspot.setAttribute("aria-hidden", "true");
+      infoBar.parentNode.insertBefore(navHotspot, infoBar);
+    }
+  }
+  const ensureUiDefaults = () => {
+    if (!state.__ui) state.__ui = {};
+    if (state.__ui.ioOpen === undefined) state.__ui.ioOpen = true;
+    if (state.__ui.collapseParamsByDefault == null) state.__ui.collapseParamsByDefault = true;
+    if (state.__ui.configPinned == null) {
+      const isDesktop =
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(min-width: 900px)").matches;
+      state.__ui.configPinned = isDesktop ? true : !!configEl?.classList.contains("pinned");
+    }
+    if (state.__ui.navHidden == null) {
+      state.__ui.navHidden = !!infoBar?.classList.contains("hidden");
+    }
+  };
+  const syncPersistentUi = () => {
+    ensureUiDefaults();
+    ioEl.classList.toggle("hidden", !state.__ui.ioOpen);
+    if (ioToggle) ioToggle.textContent = state.__ui.ioOpen ? "-" : "+";
+    if (collapseDefaultsToggle) {
+      collapseDefaultsToggle.checked = !!state.__ui.collapseParamsByDefault;
+    }
+  };
 
   uiEl.append(autoUiEl, ioWrap);
 
-  const rerender = () => {
-  instance?.render?.();
-  xfRuntime?.rebuildNow?.();
-  const svg = mountEl.firstElementChild;
-  if (svg) {
-    applyPropOpsToSubtree(svg, state.__propOps?.stack);
-    applyScriptOpsToSubtree(svg, state.__scriptOps?.stack, { svg, state, mountEl });
+  const GLOBAL_PARAMS = [
+    {
+      key: "shouldRender",
+      type: "boolean",
+      default: true,
+      category: "System",
+      description: "Master render toggle (disables rendering when off).",
+    },
+  ];
+
+  function ensureRuntimeNow() {
+    if (typeof ensureRuntime !== "function") return { instance, xfRuntime };
+    const before = runtimeRef && !!runtimeRef.xfRuntime;
+    const out = ensureRuntime() || {};
+    const after = runtimeRef && !!runtimeRef.xfRuntime;
+    if (!before && after) rebuildAutoUI();
+    return out;
   }
-};
+
+  function rerender() {
+    if (!state.shouldRender) {
+      if (runtimeRef?.instance?.destroy) runtimeRef.instance.destroy();
+      if (runtimeRef?.xfRuntime?.destroy) runtimeRef.xfRuntime.destroy();
+      if (runtimeRef) {
+        runtimeRef.instance = null;
+        runtimeRef.xfRuntime = null;
+      }
+      mountEl.innerHTML = "";
+      return;
+    }
+
+    const rt = ensureRuntimeNow();
+    const activeInstance = runtimeRef?.instance ?? rt.instance ?? instance;
+    const activeRuntime = runtimeRef?.xfRuntime ?? rt.xfRuntime ?? xfRuntime;
+
+    activeInstance?.render?.();
+    activeRuntime?.rebuildNow?.();
+    const svg = mountEl.firstElementChild;
+    if (svg) {
+      applyPropOpsToSubtree(svg, state.__propOps?.stack);
+      applyScriptOpsToSubtree(svg, state.__scriptOps?.stack, { svg, state, mountEl });
+      applyEffectsToSubtree({ mountEl, state, xfRuntime: activeRuntime });
+      applyColorToSubtree({ mountEl, state });
+    }
+  }
 
 
-  const rebuildAutoUI = () => {
+  const handleStateChange = () => {
+    record();
+    rerender();
+    persistSettings();
+  };
+  const handleStateMutation = () => {
+    record();
+    persistSettings();
+  };
+
+  function rebuildAutoUI() {
+    const params = [...GLOBAL_PARAMS, ...(spec.params || [])];
     mountAutoUI({
       container: autoUiEl,
-      spec,
+      spec: { ...spec, params },
       state,
       mountEl,
-      xfRuntime,
-      onChange: rerender,
+      xfRuntime: runtimeRef?.xfRuntime ?? xfRuntime,
+      onChange: handleStateChange,
+      onUiChange: handleUiChange,
+      onStateChange: handleStateMutation,
     });
-  };
+  }
 
   // initial mount
   rebuildAutoUI();
+  if (state.shouldRender) rerender();
+
+  function resetToDefaults() {
+    const preservedUi = state.__ui;
+    const preservedHistory = state.__history;
+    const nextState = makeDefaultState(spec);
+    if (preservedUi) nextState.__ui = preservedUi;
+    replaceStateContents(state, nextState);
+    if (preservedHistory) state.__history = preservedHistory;
+  }
+
+  const resetDefaultsBtn = document.createElement("button");
+  resetDefaultsBtn.textContent = "Reset Defaults";
+  resetDefaultsBtn.type = "button";
+  resetDefaultsBtn.classList.add("btn-inline");
+  resetDefaultsBtn.onclick = () => {
+    resetToDefaults();
+    clearSettingsCache(visualId);
+    syncPersistentUi();
+    applyLayoutFromUi();
+    persistUiNow();
+    rerender();
+    rebuildAutoUI();
+    record();
+    persistSettings();
+  };
+
+  const collapseDefaultsWrap = document.createElement("label");
+  collapseDefaultsWrap.style.display = "flex";
+  collapseDefaultsWrap.style.alignItems = "center";
+  collapseDefaultsWrap.style.gap = "6px";
+  collapseDefaultsWrap.style.margin = "4px 2px";
+
+  collapseDefaultsToggle = document.createElement("input");
+  collapseDefaultsToggle.type = "checkbox";
+  collapseDefaultsToggle.checked = !!state.__ui?.collapseParamsByDefault;
+  collapseDefaultsToggle.onchange = () => {
+    if (!state.__ui) state.__ui = {};
+    state.__ui.collapseParamsByDefault = collapseDefaultsToggle.checked;
+    state.__ui.paramGroups = {};
+    handleUiChange();
+    rebuildAutoUI();
+  };
+  collapseDefaultsWrap.appendChild(collapseDefaultsToggle);
+  collapseDefaultsWrap.appendChild(
+    document.createTextNode("Start categories collapsed")
+  );
 
   // persistent controls
   ioEl.append(
     makeSaveSettingsButton(state, visualId),
     makeLoadSettingsButton(state, () => {
+      syncPersistentUi();
+      applyLayoutFromUi();
+      persistUiNow();
       rerender();
       rebuildAutoUI();
-    })
+      record();
+      persistSettings();
+    }),
+    resetDefaultsBtn,
+    collapseDefaultsWrap
   );
 
-  makeSaveSVG(ioEl, mountEl, visualId);
+  makeSaveSVG(ioEl, mountEl, visualId, state);
   makeLoadSVG(ioEl, mountEl, (svgEl, rawText) => {
     // Optional: keep your SVG textarea/editor in sync
     // svgTa.value = rawText;
     // runUserCode();
   });
-
-  const configEl = document.getElementById("config");
-  const infoBar = document.getElementById("infoBar");
+  makeLoadSettingsFromSVG(ioEl, state, () => {
+    syncPersistentUi();
+    applyLayoutFromUi();
+    persistUiNow();
+    rerender();
+    rebuildAutoUI();
+    record();
+    persistSettings();
+  });
   const syncPinnedLayout = () => {
     const root = document.documentElement;
     const body = document.body;
@@ -437,6 +849,20 @@ export function mountVisualUI({
     root.style.setProperty("--ui-top-offset", `${Math.max(0, infoBarHeight)}px`);
     body.classList.toggle("ui-pinned", pinned);
   };
+  const applyLayoutFromUi = () => {
+    ensureUiDefaults();
+    if (configEl) {
+      const pinned = !!state.__ui.configPinned;
+      configEl.classList.toggle("pinned", pinned);
+      if (pinned) configEl.classList.add("open");
+    }
+    if (infoBar) {
+      infoBar.classList.toggle("hidden", !!state.__ui.navHidden);
+    }
+    document.body?.classList?.toggle("nav-hidden", !!state.__ui.navHidden);
+    syncPinnedLayout();
+  };
+  applyLayoutFromUi();
   if (configEl) {
     const pinBtn = document.createElement("button");
     pinBtn.type = "button";
@@ -445,33 +871,27 @@ export function mountVisualUI({
       pinBtn.textContent = configEl.classList.contains("pinned") ? "Unpin UI" : "Pin UI";
     };
     pinBtn.onclick = () => {
-      const nextPinned = !configEl.classList.contains("pinned");
-      configEl.classList.toggle("pinned", nextPinned);
-      if (nextPinned) configEl.classList.add("open");
+      state.__ui.configPinned = !state.__ui.configPinned;
+      applyLayoutFromUi();
       syncPinLabel();
-      syncPinnedLayout();
+      handleUiChange();
     };
     syncPinLabel();
     ioEl.appendChild(pinBtn);
   }
 
   if (state) {
-    if (!state.__ui) state.__ui = {};
-    if (state.__ui.ioOpen === undefined) state.__ui.ioOpen = true;
-    ioEl.classList.toggle("hidden", !state.__ui.ioOpen);
+    ensureUiDefaults();
 
-    const ioToggle = document.createElement("button");
+    ioToggle = document.createElement("button");
     ioToggle.type = "button";
     ioToggle.classList.add("vr-ioToggle");
-    const syncIoSymbol = () => {
-      ioToggle.textContent = state.__ui.ioOpen ? "-" : "+";
-    };
     ioToggle.onclick = () => {
       state.__ui.ioOpen = !state.__ui.ioOpen;
-      ioEl.classList.toggle("hidden", !state.__ui.ioOpen);
-      syncIoSymbol();
+      syncPersistentUi();
+      handleUiChange();
     };
-    syncIoSymbol();
+    syncPersistentUi();
     ioWrap.appendChild(ioToggle);
     ioWrap.appendChild(ioEl);
 
@@ -485,9 +905,10 @@ export function mountVisualUI({
       navBtn.textContent = infoBar.classList.contains("hidden") ? "Show Nav" : "Hide Nav";
     };
     navBtn.onclick = () => {
-      infoBar.classList.toggle("hidden");
+      state.__ui.navHidden = !state.__ui.navHidden;
+      applyLayoutFromUi();
       syncNavLabel();
-      syncPinnedLayout();
+      handleUiChange();
     };
     syncNavLabel();
     ioEl.appendChild(navBtn);
@@ -503,6 +924,30 @@ export function mountVisualUI({
 
   // If a visual sets `state.__anim.ui.autoPlay = true`, start playing immediately (even if tab never opened).
   maybeAutoplayAnimation({ mountEl, state, onChange: rerender });
+  const baseline = getHistorySnapshot(state);
+  if (baseline) history.last = baseline;
+  history.suspend = Math.max(0, history.suspend - 1);
+  setActiveUndoContext({
+    state,
+    undo: () => {
+      if (!history?.past?.length) return false;
+      const snapshot = history.past.pop();
+      if (history.last) history.future.push(history.last);
+      const applied = withHistorySuspended(history, () => {
+        const ok = applyHistorySnapshot(state, history, snapshot);
+        if (!ok) return false;
+        syncPersistentUi();
+        applyLayoutFromUi();
+        rerender();
+        rebuildAutoUI();
+        return true;
+      });
+      if (!applied) return false;
+      persistUiNow();
+      persistSettings();
+      return true;
+    },
+  });
   return { rebuildAutoUI };
 }
 
@@ -517,23 +962,41 @@ export function runVisualApp({
   if (!spec) throw new Error(`Unknown visualId "${visualId}"`);
 
   //const state = providedState || makeDefaultState(spec);
-const state = makeDefaultState(spec);
-if (providedState && typeof providedState === "object") {
-  mergeInto(state, providedState);
-}
+  const state = makeDefaultState(spec);
+  const cachedSettings = loadSettingsCache(visualId);
+  if (cachedSettings) mergeInto(state, cachedSettings);
+  const cachedUi = loadUiCache(visualId);
+  if (cachedUi) {
+    if (!state.__ui) state.__ui = {};
+    mergeInto(state.__ui, cachedUi);
+  }
+  if (providedState && typeof providedState === "object") {
+    mergeInto(state, providedState);
+  }
 
-  let instance = spec.create({ mountEl }, state);
+  const runtimeRef = { instance: null, xfRuntime: null };
 
-  ensureTransformState(state);
-  const xfRuntime = initTransformRuntime({ mountEl, state });
+  const ensureRuntime = () => {
+    if (!state.shouldRender) return runtimeRef;
+    if (!runtimeRef.instance) {
+      runtimeRef.instance = spec.create({ mountEl }, state);
+    }
+    if (!runtimeRef.xfRuntime) {
+      ensureTransformState(state);
+      runtimeRef.xfRuntime = initTransformRuntime({ mountEl, state });
+    }
+    return runtimeRef;
+  };
 
-  mountVisualUI({
+  const { rebuildAutoUI } = mountVisualUI({
     uiEl,
     spec,
     state,
     mountEl,
-    xfRuntime,
-    instance,
+    xfRuntime: runtimeRef.xfRuntime,
+    instance: runtimeRef.instance,
+    runtimeRef,
+    ensureRuntime,
     visualId,
   });
 
@@ -566,10 +1029,12 @@ if (providedState && typeof providedState === "object") {
   return {
     spec,
     state,
-    instance,
+    get instance() {
+      return runtimeRef.instance;
+    },
     getParamsJSON: () => getVisualParamsTree(spec, state),
     setVisual(nextId) {
-      instance?.destroy?.();
+      runtimeRef.instance?.destroy?.();
       uiEl.innerHTML = "";
       mountEl.innerHTML = "";
       return runVisualApp({ visualId: nextId, mountEl, uiEl });
@@ -742,7 +1207,7 @@ function buildTextControl({ param, state, onChange, value }) {
   input.addEventListener("blur", commit);
   return input;
 }
-export function makeSaveSVG(uiEl,mountEl,visualId){
+export function makeSaveSVG(uiEl, mountEl, visualId, state) {
   const saveBtn = document.createElement("button");
   saveBtn.textContent = "Save SVG";
   saveBtn.type = "button";
@@ -754,7 +1219,21 @@ export function makeSaveSVG(uiEl,mountEl,visualId){
     if (!(svg instanceof SVGSVGElement)) return;
 
     const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(svg);
+    const clone = svg.cloneNode(true);
+    const settingsJson = state ? exportStateToJSON(state) : "";
+    if (settingsJson) {
+      const ns = clone.namespaceURI || "http://www.w3.org/2000/svg";
+      let meta = clone.querySelector('metadata#ohey-settings');
+      if (!meta) {
+        meta = document.createElementNS(ns, "metadata");
+        meta.setAttribute("id", "ohey-settings");
+        meta.setAttribute("data-format", "json");
+        clone.insertBefore(meta, clone.firstChild);
+      }
+      meta.textContent = settingsJson;
+    }
+
+    let source = serializer.serializeToString(clone);
 
     if (!source.includes('xmlns="http://www.w3.org/2000/svg"')) {
       source = source.replace(
@@ -838,6 +1317,55 @@ export function makeLoadSVG(uiEl, mountEl, onLoaded) {
   uiEl.appendChild(loadBtn);
   uiEl.appendChild(input);
 
+  return { loadBtn, input };
+}
+
+export function makeLoadSettingsFromSVG(uiEl, state, onChange) {
+  const loadBtn = document.createElement("button");
+  loadBtn.textContent = "Load Settings from SVG";
+  loadBtn.type = "button";
+  loadBtn.style.marginTop = "5px";
+  loadBtn.classList.add("btn-inline");
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".svg,image/svg+xml";
+  input.style.display = "none";
+
+  loadBtn.onclick = () => input.click();
+
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+      const parseErr = doc.querySelector("parsererror");
+      if (parseErr) {
+        throw new Error("SVG parse error: " + parseErr.textContent);
+      }
+      const svg = doc.documentElement;
+      if (!svg || svg.tagName.toLowerCase() !== "svg") {
+        throw new Error("Selected file does not contain a single <svg> root.");
+      }
+
+      const meta = svg.querySelector('metadata#ohey-settings');
+      if (!meta) throw new Error("No embedded settings found in SVG metadata.");
+      const raw = String(meta.textContent || "").trim();
+      if (!raw) throw new Error("Embedded settings are empty.");
+
+      importStateFromJSON(raw, state);
+      onChange?.();
+    } catch (e) {
+      console.error(e);
+      alert(String(e?.message || e));
+    }
+  };
+
+  uiEl.appendChild(loadBtn);
+  uiEl.appendChild(input);
   return { loadBtn, input };
 }
 // export function el(tag, props = {}, children = []) {

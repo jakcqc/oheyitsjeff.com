@@ -12,11 +12,11 @@ export function ensurePropOpsState(state) {
         "apply": {"stroke": null}
         }`,
         lastPreview: "",
-        showDocs: true,
+        showDocs: false,
         };
 
   }
-  if (state.__propOps.ui.showDocs == null) state.__propOps.ui.showDocs = true;
+  if (state.__propOps.ui.showDocs == null) state.__propOps.ui.showDocs = false;
   if (!Array.isArray(state.__propOps.stack)) state.__propOps.stack = [];
 }
 
@@ -51,10 +51,10 @@ export function ensureScriptOpsState(state) {
       selectedCacheKey: "",
       autoRunSelected: false,
       lastPreview: "",
-      showDocs: true,
+      showDocs: false,
     };
   }
-  if (state.__scriptOps.ui.showDocs == null) state.__scriptOps.ui.showDocs = true;
+  if (state.__scriptOps.ui.showDocs == null) state.__scriptOps.ui.showDocs = false;
   if (state.__scriptOps.ui.autoRunSelected == null) state.__scriptOps.ui.autoRunSelected = false;
   if (state.__scriptOps.ui.selectedCacheKey == null) state.__scriptOps.ui.selectedCacheKey = "";
   if (!Array.isArray(state.__scriptOps.stack)) state.__scriptOps.stack = [];
@@ -318,6 +318,12 @@ function selectorMatches(el, selectorObj) {
   return false;
 }
 
+export function selectElementsByPropSelector(rootEl, selectorObj) {
+  if (!rootEl || rootEl.nodeType !== 1) return [];
+  const all = [rootEl, ...Array.from(rootEl.querySelectorAll("*"))];
+  return all.filter(el => selectorMatches(el, selectorObj));
+}
+
 
 function applyPatch(el, patchObj) {
     if (patchObj?.$delete) {
@@ -423,8 +429,13 @@ export function applyScriptOpsToSubtree(rootEl, scriptStack, { svg, state, mount
 
 
 
-export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
+export function buildPropOpsPanel({ mountEl, state, xfRuntime, onStateChange }) {
   ensurePropOpsState(state);
+  const markDirty = () => onStateChange?.();
+  const setUi = (path, value) => {
+    setByPath(state, path, value);
+    markDirty();
+  };
 
   const root = document.createElement("div");
   root.className = "propops-panel";
@@ -441,7 +452,7 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
       wrap.appendChild(summary);
 
       wrap.addEventListener("toggle", () => {
-        setByPath(state, "__propOps.ui.showDocs", !!wrap.open);
+        setUi("__propOps.ui.showDocs", !!wrap.open);
       });
 
       const body = document.createElement("pre");
@@ -468,7 +479,7 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
   ta.style.width = "100%";
 
   ta.addEventListener("input", () => {
-    setByPath(state, "__propOps.ui.ruleText", ta.value);
+    setUi("__propOps.ui.ruleText", ta.value);
   });
 
   wrap.appendChild(divider);
@@ -521,11 +532,7 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
         throw new Error("missing or invalid apply");
       }
     } catch (e) {
-      setByPath(
-        state,
-        "__propOps.ui.lastPreview",
-        `parse error: ${e?.message || e}`
-      );
+      setUi("__propOps.ui.lastPreview", `parse error: ${e?.message || e}`);
       render();
       return;
     }
@@ -535,6 +542,7 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
       selector: rule.selector,
       apply: rule.apply,
     });
+    markDirty();
 
     xfRuntime?.rebuildNow?.();
 
@@ -547,10 +555,10 @@ export function buildPropOpsPanel({ mountEl, state, xfRuntime }) {
   })
 );
 
-
     btnRow.appendChild(
       mkBtn("undo", () => {
         state.__propOps.stack.pop();
+        markDirty();
         xfRuntime?.rebuildNow?.();
 
 const svg = mountEl.firstElementChild;
@@ -565,6 +573,7 @@ if (svg) {
     btnRow.appendChild(
       mkBtn("reset", () => {
         state.__propOps.stack.length = 0;
+        markDirty();
         xfRuntime?.rebuildNow?.();
 
 const svg = mountEl.firstElementChild;
@@ -590,16 +599,30 @@ if (svg) {
   return root;
 }
 export function registerPropOpsTab() {
-  registerTab("propOps", ({ mountEl, state, xfRuntime }) =>
-    buildPropOpsPanel({ mountEl, state, xfRuntime })
+  registerTab("propOps", ({ mountEl, state, xfRuntime, onStateChange }) =>
+    buildPropOpsPanel({ mountEl, state, xfRuntime, onStateChange })
   );
 }
 
-export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
+export function buildScriptOpsPanel({ mountEl, state, xfRuntime, onStateChange }) {
   ensureScriptOpsState(state);
+  const markDirty = () => onStateChange?.();
+  const setUi = (path, value) => {
+    setByPath(state, path, value);
+    markDirty();
+  };
 
   const root = document.createElement("div");
   root.className = "scriptops-panel";
+  const EXAMPLE_SCRIPTS = [
+    "scaleCircles.user.js",
+    "scaleRects.user.js",
+    "scalePolygons.user.js",
+    "scalePaths.user.js",
+    "convertShapesSimple.user.js",
+    "convertShapes.user.js",
+  ];
+  let examplesLoading = false;
 
   const render = () => {
     root.innerHTML = "";
@@ -613,7 +636,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
       wrap.appendChild(summary);
 
       wrap.addEventListener("toggle", () => {
-        setByPath(state, "__scriptOps.ui.showDocs", !!wrap.open);
+        setUi("__scriptOps.ui.showDocs", !!wrap.open);
       });
 
       const body = document.createElement("pre");
@@ -626,6 +649,44 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
     };
 
     root.appendChild(mkDocs());
+
+    if (!state.__scriptOps.ui.examplesLoaded && !examplesLoading) {
+      examplesLoading = true;
+      const loadExamples = async () => {
+        const entries = await Promise.all(
+          EXAMPLE_SCRIPTS.map(async (name) => {
+            const url = new URL(`./${name}`, import.meta.url);
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`failed to load ${name}`);
+            return [name, await res.text()];
+          })
+        );
+
+        for (const [name, code] of entries) {
+          if (!state.__scriptOps.cache[name]) {
+            state.__scriptOps.cache[name] = { code, updatedAt: Date.now() };
+          }
+        }
+        if (!getByPath(state, "__scriptOps.ui.selectedCacheKey")) {
+          const first = entries[0]?.[0];
+          if (first) {
+            setUi("__scriptOps.ui.selectedCacheKey", first);
+            setUi("__scriptOps.ui.fileName", first);
+            setUi("__scriptOps.ui.codeText", state.__scriptOps.cache[first].code);
+          }
+        }
+        setUi("__scriptOps.ui.examplesLoaded", true);
+      };
+
+      loadExamples()
+        .catch((e) => {
+          setUi("__scriptOps.ui.lastPreview", `example load error: ${e?.message || e}`);
+        })
+        .finally(() => {
+          examplesLoading = false;
+          render();
+        });
+    }
 
     const cacheKeys = Object.keys(state.__scriptOps.cache || {}).sort((a, b) => a.localeCompare(b));
     const selectedKey = String(getByPath(state, "__scriptOps.ui.selectedCacheKey") || "");
@@ -650,7 +711,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
     }
     sel.value = cacheKeys.includes(selectedKey) ? selectedKey : "";
     sel.onchange = () => {
-      setByPath(state, "__scriptOps.ui.selectedCacheKey", sel.value);
+      setUi("__scriptOps.ui.selectedCacheKey", sel.value);
       render();
     };
 
@@ -662,7 +723,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
     autoCb.type = "checkbox";
     autoCb.checked = !!getByPath(state, "__scriptOps.ui.autoRunSelected");
     autoCb.onchange = () => {
-      setByPath(state, "__scriptOps.ui.autoRunSelected", !!autoCb.checked);
+      setUi("__scriptOps.ui.autoRunSelected", !!autoCb.checked);
       xfRuntime?.rebuildNow?.();
       render();
     };
@@ -698,12 +759,12 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
       const file = input.files?.[0];
       if (!file) return;
       const text = await file.text();
-      setByPath(state, "__scriptOps.ui.codeText", text);
-      setByPath(state, "__scriptOps.ui.fileName", file.name);
+      setUi("__scriptOps.ui.codeText", text);
+      setUi("__scriptOps.ui.fileName", file.name);
 
       // Cache by filename (overwrite).
       state.__scriptOps.cache[file.name] = { code: text, updatedAt: Date.now() };
-      setByPath(state, "__scriptOps.ui.selectedCacheKey", file.name);
+      setUi("__scriptOps.ui.selectedCacheKey", file.name);
       render();
     };
 
@@ -723,7 +784,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
     ta.rows = 14;
     ta.style.width = "100%";
     ta.addEventListener("input", () => {
-      setByPath(state, "__scriptOps.ui.codeText", ta.value);
+      setUi("__scriptOps.ui.codeText", ta.value);
     });
     root.appendChild(ta);
 
@@ -755,12 +816,12 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
         const key = String(getByPath(state, "__scriptOps.ui.selectedCacheKey") || "");
         const entry = key ? state.__scriptOps.cache?.[key] : null;
         if (!entry?.code) {
-          setByPath(state, "__scriptOps.ui.lastPreview", "no cached script selected");
+          setUi("__scriptOps.ui.lastPreview", "no cached script selected");
           render();
           return;
         }
-        setByPath(state, "__scriptOps.ui.codeText", String(entry.code));
-        setByPath(state, "__scriptOps.ui.fileName", key);
+        setUi("__scriptOps.ui.codeText", String(entry.code));
+        setUi("__scriptOps.ui.fileName", key);
         render();
       })
     );
@@ -772,9 +833,9 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
           const entry = key ? state.__scriptOps.cache?.[key] : null;
           if (!entry?.code) throw new Error("no cached script selected");
           runCodeOnce(String(entry.code));
-          setByPath(state, "__scriptOps.ui.lastPreview", "ok");
+          setUi("__scriptOps.ui.lastPreview", "ok");
         } catch (e) {
-          setByPath(state, "__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
+          setUi("__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
         }
         render();
       })
@@ -784,7 +845,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
       mkBtn("save to cache", () => {
         const code = String(getByPath(state, "__scriptOps.ui.codeText") ?? "");
         if (!code.trim()) {
-          setByPath(state, "__scriptOps.ui.lastPreview", "script is empty");
+          setUi("__scriptOps.ui.lastPreview", "script is empty");
           render();
           return;
         }
@@ -792,9 +853,9 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
         const name = window.prompt("Cache name", defName);
         if (!name) return;
         state.__scriptOps.cache[name] = { code, updatedAt: Date.now() };
-        setByPath(state, "__scriptOps.ui.selectedCacheKey", name);
-        setByPath(state, "__scriptOps.ui.fileName", name);
-        setByPath(state, "__scriptOps.ui.lastPreview", "cached");
+        setUi("__scriptOps.ui.selectedCacheKey", name);
+        setUi("__scriptOps.ui.fileName", name);
+        setUi("__scriptOps.ui.lastPreview", "cached");
         render();
       })
     );
@@ -807,10 +868,10 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
         if (!ok) return;
         delete state.__scriptOps.cache[key];
         if (String(getByPath(state, "__scriptOps.ui.fileName") || "") === key) {
-          setByPath(state, "__scriptOps.ui.fileName", "");
+          setUi("__scriptOps.ui.fileName", "");
         }
-        setByPath(state, "__scriptOps.ui.selectedCacheKey", "");
-        setByPath(state, "__scriptOps.ui.lastPreview", "deleted");
+        setUi("__scriptOps.ui.selectedCacheKey", "");
+        setUi("__scriptOps.ui.lastPreview", "deleted");
         render();
       })
     );
@@ -820,9 +881,9 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
         try {
           const code = String(getByPath(state, "__scriptOps.ui.codeText") ?? "");
           runCodeOnce(code);
-          setByPath(state, "__scriptOps.ui.lastPreview", "ok");
+          setUi("__scriptOps.ui.lastPreview", "ok");
         } catch (e) {
-          setByPath(state, "__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
+          setUi("__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
         }
         render();
       })
@@ -834,12 +895,13 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
           const code = String(getByPath(state, "__scriptOps.ui.codeText") ?? "");
           if (!code.trim()) throw new Error("script is empty");
           state.__scriptOps.stack.push({ kind: "script", code });
+          markDirty();
           xfRuntime?.rebuildNow?.();
           const svg = mountEl.firstElementChild;
           if (svg) applyScriptOpsToSubtree(svg, state.__scriptOps.stack, { svg, state, mountEl });
-          setByPath(state, "__scriptOps.ui.lastPreview", "saved");
+          setUi("__scriptOps.ui.lastPreview", "saved");
         } catch (e) {
-          setByPath(state, "__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
+          setUi("__scriptOps.ui.lastPreview", `error: ${e?.message || e}`);
         }
         render();
       })
@@ -848,6 +910,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
     btnRow.appendChild(
       mkBtn("undo", () => {
         state.__scriptOps.stack.pop();
+        markDirty();
         xfRuntime?.rebuildNow?.();
         const svg = mountEl.firstElementChild;
         if (svg) applyScriptOpsToSubtree(svg, state.__scriptOps.stack, { svg, state, mountEl });
@@ -858,6 +921,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
     btnRow.appendChild(
       mkBtn("reset", () => {
         state.__scriptOps.stack.length = 0;
+        markDirty();
         xfRuntime?.rebuildNow?.();
         const svg = mountEl.firstElementChild;
         if (svg) applyScriptOpsToSubtree(svg, state.__scriptOps.stack, { svg, state, mountEl });
@@ -880,7 +944,7 @@ export function buildScriptOpsPanel({ mountEl, state, xfRuntime }) {
 }
 
 export function registerScriptOpsTab() {
-  registerTab("scriptOps", ({ mountEl, state, xfRuntime }) =>
-    buildScriptOpsPanel({ mountEl, state, xfRuntime })
+  registerTab("scriptOps", ({ mountEl, state, xfRuntime, onStateChange }) =>
+    buildScriptOpsPanel({ mountEl, state, xfRuntime, onStateChange })
   );
 }

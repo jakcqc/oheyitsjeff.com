@@ -54,6 +54,447 @@ function copyAttributes(fromEl, toEl, { skip = [] } = {}) {
   }
 }
 
+function fmtNum(n) {
+  return Number.isFinite(n) ? Number(n.toFixed(3)) : n;
+}
+
+function rectsOverlap(a, b, pad) {
+  const ax0 = a.x - pad;
+  const ay0 = a.y - pad;
+  const ax1 = a.x + a.w + pad;
+  const ay1 = a.y + a.h + pad;
+  const bx0 = b.x - pad;
+  const by0 = b.y - pad;
+  const bx1 = b.x + b.w + pad;
+  const by1 = b.y + b.h + pad;
+  return !(ax1 < bx0 || ax0 > bx1 || ay1 < by0 || ay0 > by1);
+}
+
+function rectContained(outer, inner, pad) {
+  const ox0 = outer.x - pad;
+  const oy0 = outer.y - pad;
+  const ox1 = outer.x + outer.w + pad;
+  const oy1 = outer.y + outer.h + pad;
+  const ix0 = inner.x;
+  const iy0 = inner.y;
+  const ix1 = inner.x + inner.w;
+  const iy1 = inner.y + inner.h;
+  return ix0 > ox0 && iy0 > oy0 && ix1 < ox1 && iy1 < oy1;
+}
+
+function circlesContain(a, b, pad) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  return dist + b.r <= a.r - pad;
+}
+
+function buildUnionContourPath(shapes, opts = {}) {
+  const padding = Number(opts.padding) || 0;
+  const gridStep = Number(opts.gridStep) || 6;
+  const smoothPasses = Math.max(0, Math.trunc(Number(opts.smoothPasses) || 0));
+  if (!Array.isArray(shapes) || shapes.length < 2) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let minSize = Infinity;
+  for (const s of shapes) {
+    if (s.kind === "circle") {
+      minX = Math.min(minX, s.x - (s.r + padding));
+      minY = Math.min(minY, s.y - (s.r + padding));
+      maxX = Math.max(maxX, s.x + (s.r + padding));
+      maxY = Math.max(maxY, s.y + (s.r + padding));
+      minSize = Math.min(minSize, s.r);
+    } else {
+      minX = Math.min(minX, s.x - padding);
+      minY = Math.min(minY, s.y - padding);
+      maxX = Math.max(maxX, s.x + s.w + padding);
+      maxY = Math.max(maxY, s.y + s.h + padding);
+      minSize = Math.min(minSize, Math.min(s.w, s.h));
+    }
+  }
+  minX -= padding;
+  minY -= padding;
+  maxX += padding;
+  maxY += padding;
+
+  let step = Math.max(2, Math.min(12, gridStep));
+  if (Number.isFinite(minSize) && minSize > 0) {
+    step = Math.min(step, Math.max(1, minSize * 0.8));
+  }
+  const maxCells = 220;
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1, maxY - minY);
+  step = Math.max(step, Math.max(spanX / maxCells, spanY / maxCells));
+
+  const cols = Math.max(3, Math.ceil(spanX / step) + 1);
+  const rows = Math.max(3, Math.ceil(spanY / step) + 1);
+
+  const insideAny = (x, y) => {
+    for (const s of shapes) {
+      if (s.kind === "circle") {
+        const dx = x - s.x;
+        const dy = y - s.y;
+        const r = s.r + padding;
+        if (dx * dx + dy * dy <= r * r) return 1;
+      } else {
+        if (x >= s.x - padding && x <= s.x + s.w + padding &&
+            y >= s.y - padding && y <= s.y + s.h + padding) {
+          return 1;
+        }
+      }
+    }
+    return 0;
+  };
+
+  const grid = Array.from({ length: rows }, (_r, j) => {
+    const y = minY + j * step;
+    const row = new Uint8Array(cols);
+    for (let i = 0; i < cols; i++) {
+      const x = minX + i * step;
+      row[i] = insideAny(x, y);
+    }
+    return row;
+  });
+
+  const segs = [];
+  const addSeg = (p, q) => segs.push([p, q]);
+  const edgePts = (x0, y0) => {
+    const h = step * 0.5;
+    return {
+      top: { x: x0 + h, y: y0 },
+      right: { x: x0 + step, y: y0 + h },
+      bottom: { x: x0 + h, y: y0 + step },
+      left: { x: x0, y: y0 + h },
+      center: { x: x0 + h, y: y0 + h },
+    };
+  };
+
+  for (let j = 0; j < rows - 1; j++) {
+    for (let i = 0; i < cols - 1; i++) {
+      const tl = grid[j][i];
+      const tr = grid[j][i + 1];
+      const br = grid[j + 1][i + 1];
+      const bl = grid[j + 1][i];
+      const code = (tl << 3) | (tr << 2) | (br << 1) | bl;
+      if (code === 0 || code === 15) continue;
+
+      const x0 = minX + i * step;
+      const y0 = minY + j * step;
+      const p = edgePts(x0, y0);
+      const centerInside = insideAny(p.center.x, p.center.y) === 1;
+
+      switch (code) {
+        case 1: addSeg(p.left, p.bottom); break;
+        case 2: addSeg(p.bottom, p.right); break;
+        case 3: addSeg(p.left, p.right); break;
+        case 4: addSeg(p.top, p.right); break;
+        case 5:
+          if (centerInside) { addSeg(p.top, p.right); addSeg(p.left, p.bottom); }
+          else { addSeg(p.top, p.left); addSeg(p.bottom, p.right); }
+          break;
+        case 6: addSeg(p.top, p.bottom); break;
+        case 7: addSeg(p.top, p.left); break;
+        case 8: addSeg(p.top, p.left); break;
+        case 9: addSeg(p.top, p.bottom); break;
+        case 10:
+          if (centerInside) { addSeg(p.top, p.left); addSeg(p.bottom, p.right); }
+          else { addSeg(p.top, p.right); addSeg(p.left, p.bottom); }
+          break;
+        case 11: addSeg(p.top, p.right); break;
+        case 12: addSeg(p.left, p.right); break;
+        case 13: addSeg(p.bottom, p.right); break;
+        case 14: addSeg(p.left, p.bottom); break;
+        default: break;
+      }
+    }
+  }
+
+  if (!segs.length) return null;
+
+  const keyOf = (pt) => `${fmtNum(pt.x)},${fmtNum(pt.y)}`;
+  const ptOf = new Map();
+  const adj = new Map();
+
+  const addEdge = (a, b) => {
+    const ka = keyOf(a);
+    const kb = keyOf(b);
+    ptOf.set(ka, { x: fmtNum(a.x), y: fmtNum(a.y) });
+    ptOf.set(kb, { x: fmtNum(b.x), y: fmtNum(b.y) });
+    if (!adj.has(ka)) adj.set(ka, []);
+    if (!adj.has(kb)) adj.set(kb, []);
+    adj.get(ka).push(kb);
+    adj.get(kb).push(ka);
+  };
+
+  for (const [a, b] of segs) addEdge(a, b);
+
+  const visitedEdge = new Set();
+  const edgeKey = (ka, kb) => (ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`);
+  const loops = [];
+
+  for (const start of adj.keys()) {
+    const ns = adj.get(start) || [];
+    let next = ns.find(n => !visitedEdge.has(edgeKey(start, n)));
+    if (!next) continue;
+
+    const loop = [];
+    let prev = null;
+    let cur = start;
+
+    while (true) {
+      loop.push(ptOf.get(cur));
+      const neigh = adj.get(cur) || [];
+      let cand = null;
+      for (const n of neigh) {
+        const ek = edgeKey(cur, n);
+        if (visitedEdge.has(ek)) continue;
+        if (prev !== null && n === prev && neigh.length > 1) continue;
+        cand = n;
+        break;
+      }
+      if (!cand) break;
+
+      visitedEdge.add(edgeKey(cur, cand));
+      prev = cur;
+      cur = cand;
+      if (cur === start) {
+        loop.push(ptOf.get(cur));
+        break;
+      }
+      if (loop.length > 20000) break;
+    }
+
+    if (loop.length >= 4 &&
+        loop[0] &&
+        loop[loop.length - 1] &&
+        loop[0].x === loop[loop.length - 1].x &&
+        loop[0].y === loop[loop.length - 1].y) {
+      loop.pop();
+      loops.push(loop);
+    }
+  }
+
+  if (!loops.length) return null;
+
+  const areaOf = (pts) => {
+    let a = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const p0 = pts[i];
+      const p1 = pts[(i + 1) % pts.length];
+      a += p0.x * p1.y - p1.x * p0.y;
+    }
+    return a * 0.5;
+  };
+
+  loops.sort((A, B) => Math.abs(areaOf(B)) - Math.abs(areaOf(A)));
+
+  const pathParts = [];
+  for (let li = 0; li < loops.length; li++) {
+    let pts = loops[li];
+    for (let pass = 0; pass < smoothPasses; pass++) {
+      if (pts.length < 6) break;
+      const sm = [];
+      for (let i = 0; i < pts.length; i++) {
+        const p0 = pts[i];
+        const p1 = pts[(i + 1) % pts.length];
+        sm.push({ x: fmtNum(0.75 * p0.x + 0.25 * p1.x), y: fmtNum(0.75 * p0.y + 0.25 * p1.y) });
+        sm.push({ x: fmtNum(0.25 * p0.x + 0.75 * p1.x), y: fmtNum(0.25 * p0.y + 0.75 * p1.y) });
+      }
+      pts = sm;
+    }
+    pathParts.push(`M ${pts[0].x} ${pts[0].y}`);
+    for (let i = 1; i < pts.length; i++) pathParts.push(`L ${pts[i].x} ${pts[i].y}`);
+    pathParts.push("Z");
+  }
+  return pathParts.join(" ");
+}
+
+export function mergeCirclesToPathsInSubtree(ctx, opts = {}) {
+  const {
+    root = ctx?.root,
+    create = ctx?.create,
+    selector = "circle",
+    elements = null,
+    mergeRatio = 1.02,
+    padding = 0,
+    gridStep = 6,
+    smoothPasses = 1,
+    stroke = "#000000",
+    strokeWidth = 1,
+    runId = null,
+    debug = false,
+  } = opts;
+
+  if (!root || root.nodeType !== 1) throw new Error("mergeCirclesToPathsInSubtree: missing ctx.root/root");
+  if (typeof create !== "function") throw new Error("mergeCirclesToPathsInSubtree: missing ctx.create/create(tag)");
+
+  const circles = (Array.isArray(elements) ? elements : Array.from(root.querySelectorAll(selector)))
+    .filter(c => String(c.tagName || "").toLowerCase() === "circle");
+
+  const parsed = circles.map((c) => {
+    const cx = Number(c.getAttribute("cx") || 0);
+    const cy = Number(c.getAttribute("cy") || 0);
+    const r = Number(c.getAttribute("r") || 0);
+    if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(r) || r <= 0) return null;
+    return { el: c, x: cx, y: cy, r, kind: "circle" };
+  }).filter(Boolean);
+
+  const stats = { selector, matched: parsed.length, merged: 0, paths: 0 };
+  if (!parsed.length) return stats;
+
+  const components = [];
+  const visited = new Array(parsed.length).fill(false);
+  const ratio = Math.max(0.5, Number(mergeRatio) || 1);
+  const pad = Math.max(0, Number(padding) || 0);
+
+  for (let i = 0; i < parsed.length; i++) {
+    if (visited[i]) continue;
+    const stack = [i];
+    const comp = [];
+    visited[i] = true;
+    while (stack.length) {
+      const idx = stack.pop();
+      const a = parsed[idx];
+      comp.push(a);
+      for (let j = 0; j < parsed.length; j++) {
+        if (visited[j]) continue;
+        const b = parsed[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
+        const thresh = (a.r + b.r + pad * 2) * ratio;
+        const contains =
+          circlesContain(a, b, pad) ||
+          circlesContain(b, a, pad);
+        if (dist <= thresh && !contains) {
+          visited[j] = true;
+          stack.push(j);
+        }
+      }
+    }
+    if (comp.length >= 2) components.push(comp);
+  }
+
+  for (const comp of components) {
+    const shapes = comp.map(c => ({ kind: "circle", x: c.x, y: c.y, r: c.r }));
+    const pathD = buildUnionContourPath(shapes, { padding: pad, gridStep, smoothPasses });
+    if (!pathD) continue;
+    const path = create("path");
+    path.setAttribute("d", pathD);
+    if (runId) path.setAttribute("data-merge-run", String(runId));
+    copyAttributes(comp[0].el, path, { skip: ["cx", "cy", "r"] });
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", stroke);
+    path.setAttribute("stroke-width", String(strokeWidth));
+    path.setAttribute("stroke-linejoin", "round");
+    path.setAttribute("stroke-linecap", "round");
+    const parent = comp[0].el.parentNode;
+    if (parent) parent.insertBefore(path, comp[0].el);
+    for (const item of comp) item.el.remove();
+    stats.paths += 1;
+    stats.merged += comp.length;
+  }
+
+  if (debug) {
+    // eslint-disable-next-line no-console
+    console.log("[scriptOps][mergeCirclesToPaths] matched:", stats.matched, "merged:", stats.merged, "paths:", stats.paths);
+  }
+
+  return stats;
+}
+
+export function mergeRectsToPathsInSubtree(ctx, opts = {}) {
+  const {
+    root = ctx?.root,
+    create = ctx?.create,
+    selector = "rect",
+    elements = null,
+    padding = 0,
+    gridStep = 6,
+    smoothPasses = 1,
+    stroke = "#000000",
+    strokeWidth = 1,
+    runId = null,
+    debug = false,
+  } = opts;
+
+  if (!root || root.nodeType !== 1) throw new Error("mergeRectsToPathsInSubtree: missing ctx.root/root");
+  if (typeof create !== "function") throw new Error("mergeRectsToPathsInSubtree: missing ctx.create/create(tag)");
+
+  const rects = (Array.isArray(elements) ? elements : Array.from(root.querySelectorAll(selector)))
+    .filter(r => String(r.tagName || "").toLowerCase() === "rect");
+
+  const parsed = rects.map((r) => {
+    const x = Number(r.getAttribute("x") || 0);
+    const y = Number(r.getAttribute("y") || 0);
+    const w = Number(r.getAttribute("width") || 0);
+    const h = Number(r.getAttribute("height") || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+    return { el: r, x, y, w, h, kind: "rect" };
+  }).filter(Boolean);
+
+  const stats = { selector, matched: parsed.length, merged: 0, paths: 0 };
+  if (!parsed.length) return stats;
+
+  const components = [];
+  const visited = new Array(parsed.length).fill(false);
+  const pad = Math.max(0, Number(padding) || 0);
+
+  for (let i = 0; i < parsed.length; i++) {
+    if (visited[i]) continue;
+    const stack = [i];
+    const comp = [];
+    visited[i] = true;
+    while (stack.length) {
+      const idx = stack.pop();
+      const a = parsed[idx];
+      comp.push(a);
+      for (let j = 0; j < parsed.length; j++) {
+        if (visited[j]) continue;
+        const b = parsed[j];
+        const contains =
+          rectContained(a, b, pad) ||
+          rectContained(b, a, pad);
+        if (rectsOverlap(a, b, pad) && !contains) {
+          visited[j] = true;
+          stack.push(j);
+        }
+      }
+    }
+    if (comp.length >= 2) components.push(comp);
+  }
+
+  for (const comp of components) {
+    const shapes = comp.map(r => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h }));
+    const pathD = buildUnionContourPath(shapes, { padding: pad, gridStep, smoothPasses });
+    if (!pathD) continue;
+    const path = create("path");
+    path.setAttribute("d", pathD);
+    if (runId) path.setAttribute("data-merge-run", String(runId));
+    copyAttributes(comp[0].el, path, { skip: ["x", "y", "width", "height", "rx", "ry"] });
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", stroke);
+    path.setAttribute("stroke-width", String(strokeWidth));
+    path.setAttribute("stroke-linejoin", "round");
+    path.setAttribute("stroke-linecap", "round");
+    const parent = comp[0].el.parentNode;
+    if (parent) parent.insertBefore(path, comp[0].el);
+    for (const item of comp) item.el.remove();
+    stats.paths += 1;
+    stats.merged += comp.length;
+  }
+
+  if (debug) {
+    // eslint-disable-next-line no-console
+    console.log("[scriptOps][mergeRectsToPaths] matched:", stats.matched, "merged:", stats.merged, "paths:", stats.paths);
+  }
+
+  return stats;
+}
+
 function getScaleAtIndex(i, count, minS, maxS, { spacing = "linear", spacingFn = null } = {}) {
   if (count <= 1) return minS;
   let t = i / (count - 1);
@@ -71,6 +512,7 @@ export function scalePolygonsInSubtree(ctx, opts = {}) {
     spacing = "linear",
     spacingFn = null,
     opacity = null, // null => auto, false => no opacity change, number|[min,max] => explicit
+    runId = null,
   } = opts;
 
   if (!root || root.nodeType !== 1) throw new Error("scalePolygonsInSubtree: missing ctx.root/root");
@@ -88,17 +530,24 @@ export function scalePolygonsInSubtree(ctx, opts = {}) {
     .filter(p => !p.closest('g[data-scale-stack="1"]'))
     .filter(p => !p.hasAttribute("data-scale-clone"));
 
+  const stats = { selector, matched: polys.length, replaced: 0, skippedBadTag: 0, skippedBadGeom: 0, clonesMade: 0 };
+
   for (const poly of polys) {
     if (String(poly.tagName || "").toLowerCase() !== "polygon") {
-      throw new Error(`scalePolygonsInSubtree: selector must match <polygon> (got: ${selector})`);
+      stats.skippedBadTag++;
+      continue;
     }
 
     const pts = parsePoints(poly.getAttribute("points"));
-    if (pts.length < 3) continue;
+    if (pts.length < 3) {
+      stats.skippedBadGeom++;
+      continue;
+    }
     const [cx, cy] = centroid(pts);
 
     const g = create("g");
     g.setAttribute("data-scale-stack", "1");
+    if (runId) g.setAttribute("data-scale-run", String(runId));
 
     for (let i = 0; i < count; i++) {
       const s = getScaleAtIndex(i, count, minScale, maxScale, { spacing, spacingFn });
@@ -107,6 +556,7 @@ export function scalePolygonsInSubtree(ctx, opts = {}) {
       const p = create("polygon");
       p.setAttribute("data-scale-clone", "1");
       p.setAttribute("data-scale-factor", String(s));
+      if (runId) p.setAttribute("data-scale-run", String(runId));
       p.setAttribute("points", formatPoints(nextPts));
       copyAttributes(poly, p, { skip: ["points"] });
 
@@ -130,10 +580,14 @@ export function scalePolygonsInSubtree(ctx, opts = {}) {
       }
 
       g.appendChild(p);
+      stats.clonesMade++;
     }
 
     poly.replaceWith(g);
+    stats.replaced++;
   }
+
+  return stats;
 }
 
 export function scaleCirclesInSubtree(ctx, opts = {}) {
@@ -146,6 +600,7 @@ export function scaleCirclesInSubtree(ctx, opts = {}) {
     spacingFn = null,
     opacity = null, // null => auto, false => no opacity change, number|[min,max] => explicit
     debug = false,
+    runId = null,
   } = opts;
 
   if (!root || root.nodeType !== 1) throw new Error("scaleCirclesInSubtree: missing ctx.root/root");
@@ -193,6 +648,7 @@ export function scaleCirclesInSubtree(ctx, opts = {}) {
 
     const g = create("g");
     g.setAttribute("data-scale-stack", "1");
+    if (runId) g.setAttribute("data-scale-run", String(runId));
 
     for (let i = 0; i < count; i++) {
       const s = getScaleAtIndex(i, count, minScale, maxScale, { spacing, spacingFn });
@@ -202,6 +658,7 @@ export function scaleCirclesInSubtree(ctx, opts = {}) {
       const c = create("circle");
       c.setAttribute("data-scale-clone", "1");
       c.setAttribute("data-scale-factor", String(s));
+      if (runId) c.setAttribute("data-scale-run", String(runId));
       c.setAttribute("cx", String(cx));
       c.setAttribute("cy", String(cy));
       c.setAttribute("r", String(r));
@@ -252,6 +709,7 @@ export function scaleRectsInSubtree(ctx, opts = {}) {
     spacingFn = null,
     opacity = null,
     debug = false,
+    runId = null,
   } = opts;
 
   if (!root || root.nodeType !== 1) throw new Error("scaleRectsInSubtree: missing ctx.root/root");
@@ -297,6 +755,7 @@ export function scaleRectsInSubtree(ctx, opts = {}) {
 
     const g = create("g");
     g.setAttribute("data-scale-stack", "1");
+    if (runId) g.setAttribute("data-scale-run", String(runId));
 
     for (let i = 0; i < count; i++) {
       const s = getScaleAtIndex(i, count, minScale, maxScale, { spacing, spacingFn });
@@ -310,6 +769,7 @@ export function scaleRectsInSubtree(ctx, opts = {}) {
       const r = create("rect");
       r.setAttribute("data-scale-clone", "1");
       r.setAttribute("data-scale-factor", String(s));
+      if (runId) r.setAttribute("data-scale-run", String(runId));
       r.setAttribute("x", String(x));
       r.setAttribute("y", String(y));
       r.setAttribute("width", String(w));
@@ -370,6 +830,7 @@ export function scalePathsInSubtree(ctx, opts = {}) {
     spacingFn = null,
     opacity = null,
     debug = false,
+    runId = null,
   } = opts;
 
   if (!root || root.nodeType !== 1) throw new Error("scalePathsInSubtree: missing ctx.root/root");
@@ -416,12 +877,14 @@ export function scalePathsInSubtree(ctx, opts = {}) {
 
     const g = create("g");
     g.setAttribute("data-scale-stack", "1");
+    if (runId) g.setAttribute("data-scale-run", String(runId));
 
     for (let i = 0; i < count; i++) {
       const s = getScaleAtIndex(i, count, minScale, maxScale, { spacing, spacingFn });
       const clone = create("path");
       clone.setAttribute("data-scale-clone", "1");
       clone.setAttribute("data-scale-factor", String(s));
+      if (runId) clone.setAttribute("data-scale-run", String(runId));
 
       copyAttributes(path, clone, { skip: ["transform", "id"] });
 
@@ -520,6 +983,7 @@ export function convertShapesInSubtree(ctx, opts = {}) {
     selector = null,
     pathSamplePoints = 64,
     debug = false,
+    runId = null,
   } = opts;
 
   if (!root || root.nodeType !== 1) throw new Error("convertShapesInSubtree: missing ctx.root/root");
@@ -650,6 +1114,7 @@ export function convertShapesInSubtree(ctx, opts = {}) {
     }
 
     out.setAttribute("data-convert-clone", "1");
+    if (runId) out.setAttribute("data-convert-run", String(runId));
     el.replaceWith(out);
     stats.converted++;
   }
