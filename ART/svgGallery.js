@@ -1,27 +1,13 @@
 import { registerVisual } from "../helper/visualHelp.js";
 
 const API_BASE = "https://contentmanager.jakerley180.workers.dev";
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 12;
 const ROTATION_CACHE_KEY = "svgGallery.rotation.v1";
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
 
-const SORT_OPTIONS = ["A-Z", "Z-A", "Random"];
-
 function clearEl(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function sortByNameAsc(list) {
-  return [...list].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function sortByNameDesc(list) {
-  return [...list].sort((a, b) => b.name.localeCompare(a.name));
-}
-
-function sortByRandom(list) {
-  return [...list].sort((a, b) => (a.randomRank || 0) - (b.randomRank || 0));
 }
 
 function loadRotationCache() {
@@ -45,49 +31,11 @@ function saveRotationCache(cache) {
   }
 }
 
-function sortItems(list, mode) {
-  switch (mode) {
-    case "A-Z":
-      return sortByNameAsc(list);
-    case "Z-A":
-      return sortByNameDesc(list);
-    case "Random":
-    default:
-      return sortByRandom(list);
-  }
-}
-
-function randomizeItems(list) {
-  list.forEach((item) => {
-    item.randomRank = Math.random();
-  });
-}
-
 registerVisual("svgGallery", {
   title: "SVG Wall",
   description: "Browse indexed CDN assets with infinite scrolling.",
   params: [
-    { key: "gallery.search", type: "text", default: "", label: "Search", category: "Gallery" },
-    { key: "gallery.sortBy", type: "select", default: "Random", options: SORT_OPTIONS, label: "Sort by", category: "Gallery" },
-    { key: "gallery.tileSize", type: "number", default: 220, min: 140, max: 360, step: 10, label: "Tile size", category: "Gallery" },
-    {
-      key: "gallery.shuffle",
-      type: "button",
-      label: "Shuffle tiles",
-      category: "Gallery",
-      onClick: ({ state }) => {
-        state.__galleryAction = { type: "shuffle", nonce: Date.now() };
-      }
-    },
-    {
-      key: "gallery.reload",
-      type: "button",
-      label: "Reload",
-      category: "Gallery",
-      onClick: ({ state }) => {
-        state.__galleryAction = { type: "reload", nonce: Date.now() };
-      }
-    }
+    { key: "gallery.tileSize", type: "number", default: 220, min: 140, max: 360, step: 10, label: "Tile size", category: "Gallery" }
   ],
 
   create: ({ mountEl }, state) => {
@@ -101,6 +49,10 @@ registerVisual("svgGallery", {
 
     const grid = document.createElement("div");
     grid.className = "svgGallery__grid";
+
+    const scrollHint = document.createElement("div");
+    scrollHint.className = "svgGallery__scrollHint";
+    scrollHint.setAttribute("aria-hidden", "true");
 
     const lightbox = document.createElement("div");
     lightbox.className = "svgGallery__lightbox";
@@ -162,11 +114,11 @@ registerVisual("svgGallery", {
 
     app.appendChild(statusEl);
     app.appendChild(grid);
+    app.appendChild(scrollHint);
     app.appendChild(lightbox);
     mountEl.appendChild(app);
 
     let allItems = [];
-    let filteredItems = [];
     const rotationCache = loadRotationCache();
 
     let offset = 0;
@@ -187,8 +139,14 @@ registerVisual("svgGallery", {
     let lastTapY = 0;
     let zoomDirection = 1;
     let lastFocusedEl = null;
+    let hasUserScrolled = false;
+    let renderedNames = new Set();
 
-    let lastActionNonce = null;
+    const tileCache = new Map();
+    // const emptyState = document.createElement("div");
+    // emptyState.className = "svgGallery__empty";
+    // emptyState.textContent = "No assets loaded.";
+
 
     const setStatus = (text) => {
       statusEl.textContent = text;
@@ -198,114 +156,148 @@ registerVisual("svgGallery", {
       document.documentElement.style.setProperty("--svgGalleryTile", `${value}px`);
     };
 
-    const renderGrid = (options = {}) => {
-      const preserveScroll = !!options.preserveScroll;
-      const scrollTop = preserveScroll ? grid.scrollTop : 0;
+    const updateScrollHint = () => {
+      // const canScroll = grid.scrollHeight > grid.clientHeight + 2;
+      // const shouldShow = !hasUserScrolled && hasMore && canScroll;
+      // scrollHint.classList.toggle("is-visible", shouldShow);
+    };
 
-      clearEl(grid);
+    const getTile = (item) => {
+      const cached = tileCache.get(item.name);
+      if (cached) return cached;
 
-      if (!filteredItems.length) {
-        const empty = document.createElement("div");
-        empty.className = "svgGallery__empty";
-        empty.textContent = "No assets loaded.";
-        grid.appendChild(empty);
-        return;
-      }
+      const card = document.createElement("article");
+      card.className = "svgGallery__tile";
 
-      const fragment = document.createDocumentFragment();
+      const media = document.createElement("div");
+      media.className = "svgGallery__thumb";
 
-      filteredItems.forEach((item) => {
-        if (item.rotation == null) {
-          item.rotation = rotationCache[item.name] ?? 0;
-        }
+      const img = document.createElement("img");
+      img.loading = "lazy";
 
-        const card = document.createElement("article");
-        card.className = "svgGallery__tile";
+      const meta = document.createElement("div");
+      meta.className = "svgGallery__meta";
 
-        const media = document.createElement("div");
-        media.className = "svgGallery__thumb";
+      const name = document.createElement("span");
+      name.className = "svgGallery__name";
 
-        const img = document.createElement("img");
-        img.loading = "lazy";
-        img.alt = item.name;
-        img.src = item.url;
-        img.style.setProperty("--rotation", `${item.rotation}deg`);
+      const actions = document.createElement("div");
+      actions.className = "svgGallery__actions";
 
-        media.appendChild(img);
+      const orientation = document.createElement("span");
+      orientation.className = "svgGallery__orientation";
 
-        const meta = document.createElement("div");
-        meta.className = "svgGallery__meta";
-
-        const name = document.createElement("span");
-        name.className = "svgGallery__name";
-        name.textContent = item.name;
-
-        const actions = document.createElement("div");
-        actions.className = "svgGallery__actions";
-
-        const orientation = document.createElement("span");
-        orientation.className = "svgGallery__orientation";
+      const rotateBtn = document.createElement("button");
+      rotateBtn.type = "button";
+      rotateBtn.className = "svgGallery__rotateBtn";
+      rotateBtn.textContent = "Rotate 90";
+      rotateBtn.setAttribute("aria-label", "Rotate image by 90 degrees");
+      rotateBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        item.rotation = (item.rotation + 90) % 360;
         orientation.textContent = `${item.rotation}deg`;
-
-        const rotateBtn = document.createElement("button");
-        rotateBtn.type = "button";
-        rotateBtn.className = "svgGallery__rotateBtn";
-        rotateBtn.textContent = "Rotate 90";
-        rotateBtn.setAttribute("aria-label", "Rotate image by 90 degrees");
-        rotateBtn.addEventListener("click", (event) => {
-          event.preventDefault();
-          item.rotation = (item.rotation + 90) % 360;
-          orientation.textContent = `${item.rotation}deg`;
-          img.style.setProperty("--rotation", `${item.rotation}deg`);
-          rotationCache[item.name] = item.rotation;
-          saveRotationCache(rotationCache);
-        });
-
-        media.addEventListener("click", () => {
-          lastFocusedEl = document.activeElement;
-          lightboxImg.src = item.url;
-          lightboxImg.alt = item.name;
-          lightboxRotation = item.rotation;
-          lightboxPan.style.setProperty("--rotation", `${item.rotation}deg`);
-          lightboxZoom = 1;
-          zoomDirection = 1;
-          lightboxPanX = 0;
-          lightboxPanY = 0;
-          lightboxZoomSlider.value = "1";
-          lightboxPan.style.setProperty("--zoom", `${lightboxZoom}`);
-          lightboxPan.style.setProperty("--pan-x", "0px");
-          lightboxPan.style.setProperty("--pan-y", "0px");
-          lightboxZoomLabel.textContent = "100%";
-          lightbox.classList.add("is-open");
-          lightbox.setAttribute("aria-hidden", "false");
-          lightbox.removeAttribute("inert");
-
-          requestAnimationFrame(() => {
-            updateLightboxFit();
-            clampPan();
-            lightboxPan.style.setProperty("--pan-x", `${lightboxPanX}px`);
-            lightboxPan.style.setProperty("--pan-y", `${lightboxPanY}px`);
-          });
-        });
-
-        actions.appendChild(orientation);
-        actions.appendChild(rotateBtn);
-
-        meta.appendChild(name);
-        meta.appendChild(actions);
-
-        card.appendChild(media);
-        card.appendChild(meta);
-
-        fragment.appendChild(card);
+        img.style.setProperty("--rotation", `${item.rotation}deg`);
+        rotationCache[item.name] = item.rotation;
+        saveRotationCache(rotationCache);
       });
 
-      grid.appendChild(fragment);
+      media.addEventListener("click", () => {
+        lastFocusedEl = document.activeElement;
+        lightboxImg.src = item.url;
+        lightboxImg.alt = item.name;
+        lightboxRotation = item.rotation;
+        lightboxPan.style.setProperty("--rotation", `${item.rotation}deg`);
+        lightboxZoom = 1;
+        zoomDirection = 1;
+        lightboxPanX = 0;
+        lightboxPanY = 0;
+        lightboxZoomSlider.value = "1";
+        lightboxPan.style.setProperty("--zoom", `${lightboxZoom}`);
+        lightboxPan.style.setProperty("--pan-x", "0px");
+        lightboxPan.style.setProperty("--pan-y", "0px");
+        lightboxZoomLabel.textContent = "100%";
+        lightbox.classList.add("is-open");
+        lightbox.setAttribute("aria-hidden", "false");
+        lightbox.removeAttribute("inert");
 
-      if (preserveScroll) {
-        grid.scrollTop = scrollTop;
-      }
+        requestAnimationFrame(() => {
+          updateLightboxFit();
+          clampPan();
+          lightboxPan.style.setProperty("--pan-x", `${lightboxPanX}px`);
+          lightboxPan.style.setProperty("--pan-y", `${lightboxPanY}px`);
+        });
+      });
+
+      media.appendChild(img);
+      actions.appendChild(orientation);
+      actions.appendChild(rotateBtn);
+      meta.appendChild(name);
+      meta.appendChild(actions);
+      card.appendChild(media);
+      card.appendChild(meta);
+
+      const entry = { card, img, name, orientation };
+      tileCache.set(item.name, entry);
+      return entry;
     };
+
+    const animateNewTile = (card) => {
+  card.classList.remove("is-new");
+  requestAnimationFrame(() => card.classList.add("is-new"));
+  card.addEventListener(
+    "animationend",
+    () => card.classList.remove("is-new"),
+    { once: true }
+  );
+};
+
+const renderGrid = ({ preserveScroll = false } = {}) => {
+  const scrollTop = preserveScroll ? grid.scrollTop : 0;
+  const fragment = document.createDocumentFragment();
+
+  if (preserveScroll) {
+    // APPEND: only add brand-new tiles
+    for (const item of allItems) {
+      if (item.rotation == null) item.rotation = rotationCache[item.name] ?? 0;
+
+      const tile = getTile(item);
+      tile.img.alt = item.name;
+      tile.img.src = item.url;
+      tile.img.style.setProperty("--rotation", `${item.rotation}deg`);
+      tile.name.textContent = item.name;
+      tile.orientation.textContent = `${item.rotation}deg`;
+
+      if (renderedNames.has(item.name)) continue;
+      renderedNames.add(item.name);
+
+      //animateNewTile(tile.card);
+      fragment.appendChild(tile.card);
+    }
+
+    if (fragment.childNodes.length) grid.appendChild(fragment);
+    grid.scrollTop = scrollTop;
+    return;
+  }
+
+  // REBUILD: render ALL tiles (important: don't use grid.contains gating)
+  renderedNames = new Set();
+  for (const item of allItems) {
+    if (item.rotation == null) item.rotation = rotationCache[item.name] ?? 0;
+
+    const tile = getTile(item);
+    tile.img.alt = item.name;
+    tile.img.src = item.url;
+    tile.img.style.setProperty("--rotation", `${item.rotation}deg`);
+    tile.name.textContent = item.name;
+    tile.orientation.textContent = `${item.rotation}deg`;
+
+    renderedNames.add(item.name);
+    fragment.appendChild(tile.card);
+  }
+
+  grid.replaceChildren(fragment);
+};
+
 
     const closeLightbox = () => {
       const activeEl = document.activeElement;
@@ -317,7 +309,7 @@ registerVisual("svgGallery", {
         }
       }
       lightbox.classList.remove("is-open");
-      lightbox.setAttribute("aria-hidden", "true");
+      //lightbox.setAttribute("aria-hidden", "true");
       lightbox.setAttribute("inert", "");
       lightboxImg.src = "";
       lightboxImg.alt = "";
@@ -474,6 +466,10 @@ registerVisual("svgGallery", {
       lightboxPan.style.setProperty("--pan-y", `${lightboxPanY}px`);
     });
 
+    window.addEventListener("resize", () => {
+      updateScrollHint();
+    });
+
     lightboxClose.addEventListener("click", closeLightbox);
     lightbox.addEventListener("click", (event) => {
       if (event.target === lightbox) closeLightbox();
@@ -481,25 +477,6 @@ registerVisual("svgGallery", {
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeLightbox();
     });
-
-    const applyFilter = (options = {}) => {
-      const query = String(state.gallery?.search || "")
-        .trim()
-        .toLowerCase();
-
-      const sortMode = options.sortMode || state.gallery?.sortBy || "Random";
-
-      filteredItems = sortItems(
-        allItems.filter((item) =>
-          item.name.toLowerCase().includes(query)
-        ),
-        sortMode
-      );
-
-      renderGrid({ preserveScroll: options.preserveScroll });
-
-      setStatus(`${filteredItems.length} loaded`);
-    };
 
     const loadNextPage = async () => {
       if (loading || !hasMore) return;
@@ -516,23 +493,24 @@ registerVisual("svgGallery", {
 
         const data = await res.json();
 
-        if (!data.keys.length) {
-          hasMore = false;
-          setStatus("All assets loaded");
-          return;
-        }
+        // if (!data.keys.length) {
+        //   hasMore = false;
+        //   setStatus("All assets loaded");
+        //   updateScrollHint();
+        //   return;
+        // }
 
         const newItems = data.keys.map((name) => ({
           name,
           url: `${API_BASE}/cdn/${encodeURIComponent(name)}`,
-          randomRank: Math.random(),
           rotation: rotationCache[name] ?? 0
         }));
 
         offset += data.keys.length;
         allItems.push(...newItems);
 
-        applyFilter({ preserveScroll: true });
+        renderGrid({ preserveScroll: true });
+        setStatus(`${allItems.length} loaded`);
 
       } catch (err) {
         console.error(err);
@@ -545,6 +523,11 @@ registerVisual("svgGallery", {
     // Infinite scroll trigger
     grid.addEventListener("scroll", () => {
       const threshold = 150;
+
+      if (!hasUserScrolled && grid.scrollTop > 0) {
+        hasUserScrolled = true;
+        updateScrollHint();
+      }
 
       if (
         grid.scrollTop + grid.clientHeight >=
@@ -562,30 +545,6 @@ registerVisual("svgGallery", {
     return {
       render: () => {
         setTileSize(state.gallery?.tileSize ?? 220);
-
-        const action = state.__galleryAction;
-        let sortOverride;
-
-        if (action?.nonce && action.nonce !== lastActionNonce) {
-          lastActionNonce = action.nonce;
-
-          if (action.type === "shuffle") {
-            randomizeItems(allItems);
-            sortOverride = "Random";
-          }
-
-          if (action.type === "reload") {
-            allItems = [];
-            filteredItems = [];
-            offset = 0;
-            hasMore = true;
-            clearEl(grid);
-            loadNextPage();
-            return;
-          }
-        }
-
-        applyFilter(sortOverride ? { sortMode: sortOverride } : undefined);
       }
     };
   }
