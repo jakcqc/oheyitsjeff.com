@@ -468,6 +468,7 @@ const renderGrid = ({ preserveScroll = false } = {}) => {
 
     window.addEventListener("resize", () => {
       updateScrollHint();
+      requestAnimationFrame(maybeLoadMore);
     });
 
     lightboxClose.addEventListener("click", closeLightbox);
@@ -477,6 +478,13 @@ const renderGrid = ({ preserveScroll = false } = {}) => {
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeLightbox();
     });
+
+    const maybeLoadMore = () => {
+      if (loading || !hasMore) return;
+      if (grid.scrollHeight <= grid.clientHeight + 2) {
+        loadNextPage();
+      }
+    };
 
     const loadNextPage = async () => {
       if (loading || !hasMore) return;
@@ -493,12 +501,12 @@ const renderGrid = ({ preserveScroll = false } = {}) => {
 
         const data = await res.json();
 
-        // if (!data.keys.length) {
-        //   hasMore = false;
-        //   setStatus("All assets loaded");
-        //   updateScrollHint();
-        //   return;
-        // }
+        if (!data.keys.length) {
+          hasMore = false;
+          setStatus("All assets loaded");
+          updateScrollHint();
+          return;
+        }
 
         const newItems = data.keys.map((name) => ({
           name,
@@ -511,6 +519,7 @@ const renderGrid = ({ preserveScroll = false } = {}) => {
 
         renderGrid({ preserveScroll: true });
         setStatus(`${allItems.length} loaded`);
+        requestAnimationFrame(maybeLoadMore);
 
       } catch (err) {
         console.error(err);
