@@ -138,6 +138,7 @@ resize: horizontal;
     overflow-y: auto;       /* Only vertical scroll shows if needed */
     /* Optional, for smooth scrolling: */
     scroll-behavior: smooth;
+    scroll-padding-bottom: 64px;
     max-height:80%;
     width: 400px;
     max-width: 800px;
@@ -332,11 +333,13 @@ input[type="range"] {
 .vr-settingsIO.hidden {
   display: none;
 }
-.vr-settingsWrap {
+  .vr-settingsWrap {
   position: sticky;
   bottom: 0;
-  background: transparent;
+  background: rgba(26, 26, 26, 0.95);
   padding-top: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 3;
 }
 .fx-panel {
   display: flex;
@@ -468,5 +471,18 @@ bottom: 30px;
     max-width: none;
     height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
     max-height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
+  }
+}
+@supports (-webkit-touch-callout: none) {
+  #config button,
+  .vr-tab,
+  .vr-tabsToggle,
+  .vr-ioToggle {
+    background: #2b2b2b;
+    color: #f0f0f0;
+    border-color: #e0e0e0;
+  }
+  .vr-tab.active {
+    background: #3a3a3a;
   }
 }
