@@ -366,7 +366,7 @@ body::after {
 .svgGallery__lightboxInner {
   position: relative;
   width: min(92%, 980px);
-  height: min(90%, 850px);
+  height: min(90%, 800px);
   background: rgba(255, 255, 255, 0.96);
   border-radius: 20px;
   border: 1px solid rgba(30, 23, 17, 0.18);
