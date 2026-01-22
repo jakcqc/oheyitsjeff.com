@@ -138,13 +138,14 @@ resize: horizontal;
     overflow-y: auto;       /* Only vertical scroll shows if needed */
     /* Optional, for smooth scrolling: */
     scroll-behavior: smooth;
-    scroll-padding-bottom: 64px;
+    scroll-padding-bottom: 80px;
     max-height:80%;
     width: 400px;
     max-width: 800px;
     /* min-width: 383px; */
 
     color:white;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 
   }
   .vr-paramGroupTitle
@@ -471,6 +472,23 @@ bottom: 30px;
     max-width: none;
     height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
     max-height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
+  }
+}
+@supports (-webkit-touch-callout: none) {
+  #config {
+    max-height: calc(100dvh - var(--ui-top-offset, 0px) - 15px);
+  }
+  #config.pinned {
+    height: calc(100dvh - var(--ui-top-offset, 0px) - 15px);
+    max-height: calc(100dvh - var(--ui-top-offset, 0px) - 15px);
+  }
+  @media (max-width: 700px) {
+    #config,
+    #config.open,
+    #config.pinned{
+      height: calc(98dvh - var(--ui-top-offset, 0px) - 16px);
+      max-height: calc(98dvh - var(--ui-top-offset, 0px) - 16px);
+    }
   }
 }
 @supports (-webkit-touch-callout: none) {
