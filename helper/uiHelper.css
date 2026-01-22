@@ -168,8 +168,8 @@ resize: horizontal;
   position: fixed;
   right: 0;
   top: var(--ui-top-offset, 0px);
-  height: calc(100% - var(--ui-top-offset, 0px) - 15px);
-  max-height: calc(100% - var(--ui-top-offset, 0px) - 15px);
+  height: calc(100vh - var(--ui-top-offset, 0px) - 15px);
+  max-height: calc(100vh - var(--ui-top-offset, 0px) - 15px);
   border-radius: 0;
 }
     body{
@@ -185,7 +185,7 @@ resize: horizontal;
       right: 0;
       bottom: 0;
       width: auto;
-      height: calc(10% - var(--ui-top-offset, 0px));
+      /* height: calc(10vh - var(--ui-top-offset, 0px)); */
     }
     body:not(.ui-pinned) #outer,
     body:not(.ui-pinned) #vis{
@@ -203,7 +203,7 @@ resize: horizontal;
       right: var(--ui-right-width, 0px);
       bottom: 0;
       width: auto;
-      height: calc(100% - var(--ui-top-offset, 0px));
+      height: calc(100vh - var(--ui-top-offset, 0px));
     }
     body.ui-pinned #outer,
     body.ui-pinned #vis{
@@ -344,7 +344,7 @@ input[type="range"] {
   display: none;
 }
   .vr-settingsWrap {
-  position: sticky;
+  position: static;
   bottom: 0;
   background: rgba(26, 26, 26, 0.95);
   padding-top: 0;
@@ -386,10 +386,11 @@ input[type="range"] {
   font-size: 12px;
   cursor: pointer;
   border-radius: 4px;
-  position: absolute;
-  top: -16px;
-  right: 6px;
+  position: relative;
+  top: -6px;
+  /* right: 6px; */
   z-index: 2;
+
 }
 #innerLightNav{
   display: block;
@@ -479,8 +480,8 @@ bottom: 30px;
     top: calc(var(--ui-top-offset, 0px) + 8px);
     width: auto;
     max-width: none;
-    height: calc(98% - var(--ui-top-offset, 0px) - 16px);
-    max-height: calc(98% - var(--ui-top-offset, 0px) - 16px);
+    height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
+    max-height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
   }
 }
 @supports (-webkit-touch-callout: none) {

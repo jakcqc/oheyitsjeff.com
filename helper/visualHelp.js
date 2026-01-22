@@ -658,11 +658,20 @@ export function mountVisualUI({
       infoBar.parentNode.insertBefore(navHotspot, infoBar);
     }
   }
+  const isSmallScreen = () => {
+    return (
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 699px)").matches
+    );
+  };
   const ensureUiDefaults = () => {
     if (!state.__ui) state.__ui = {};
     if (state.__ui.ioOpen === undefined) state.__ui.ioOpen = true;
     if (state.__ui.collapseParamsByDefault == null) state.__ui.collapseParamsByDefault = true;
-    if (state.__ui.configPinned == null) {
+    if (isSmallScreen()) {
+      state.__ui.configPinned = false;
+    } else if (state.__ui.configPinned == null) {
       const isDesktop =
         typeof window !== "undefined" &&
         typeof window.matchMedia === "function" &&
@@ -863,7 +872,7 @@ export function mountVisualUI({
     syncPinnedLayout();
   };
   applyLayoutFromUi();
-  if (configEl) {
+  if (configEl && !isSmallScreen()) {
     const pinBtn = document.createElement("button");
     pinBtn.type = "button";
     pinBtn.classList.add("btn-inline");
