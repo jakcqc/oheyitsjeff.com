@@ -165,8 +165,8 @@ resize: horizontal;
   position: fixed;
   right: 0;
   top: var(--ui-top-offset, 0px);
-  height: calc(100vh - var(--ui-top-offset, 0px) - 15px);
-  max-height: calc(100vh - var(--ui-top-offset, 0px) - 15px);
+  height: calc(100% - var(--ui-top-offset, 0px) - 15px);
+  max-height: calc(100% - var(--ui-top-offset, 0px) - 15px);
   border-radius: 0;
 }
     body{
@@ -182,7 +182,7 @@ resize: horizontal;
       right: 0;
       bottom: 0;
       width: auto;
-      height: calc(100vh - var(--ui-top-offset, 0px));
+      height: calc(10% - var(--ui-top-offset, 0px));
     }
     body:not(.ui-pinned) #outer,
     body:not(.ui-pinned) #vis{
@@ -200,7 +200,7 @@ resize: horizontal;
       right: var(--ui-right-width, 0px);
       bottom: 0;
       width: auto;
-      height: calc(100vh - var(--ui-top-offset, 0px));
+      height: calc(100% - var(--ui-top-offset, 0px));
     }
     body.ui-pinned #outer,
     body.ui-pinned #vis{
@@ -470,24 +470,24 @@ bottom: 30px;
     top: calc(var(--ui-top-offset, 0px) + 8px);
     width: auto;
     max-width: none;
-    height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
-    max-height: calc(98vh - var(--ui-top-offset, 0px) - 16px);
+    height: calc(98% - var(--ui-top-offset, 0px) - 16px);
+    max-height: calc(98% - var(--ui-top-offset, 0px) - 16px);
   }
 }
 @supports (-webkit-touch-callout: none) {
   #config {
-    max-height: calc(100dvh - var(--ui-top-offset, 0px) - 15px);
+    max-height: calc(100svh - var(--ui-top-offset, 0px) - 15px);
   }
   #config.pinned {
-    height: calc(100dvh - var(--ui-top-offset, 0px) - 15px);
-    max-height: calc(100dvh - var(--ui-top-offset, 0px) - 15px);
+    height: calc(100svh - var(--ui-top-offset, 0px) - 15px);
+    max-height: calc(100svh - var(--ui-top-offset, 0px) - 15px);
   }
   @media (max-width: 700px) {
     #config,
     #config.open,
     #config.pinned{
-      height: calc(98dvh - var(--ui-top-offset, 0px) - 16px);
-      max-height: calc(98dvh - var(--ui-top-offset, 0px) - 16px);
+      height: calc(98svh - var(--ui-top-offset, 0px) - 16px);
+      max-height: calc(98svh - var(--ui-top-offset, 0px) - 16px);
     }
   }
 }
