@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feller Photos</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" href="../../FellerArtwork/FellerOrange.PNG" type="image/png">
+</head>
+<body>
+    <div class="color-toggle" aria-label="Palette options">
+        <button type="button" data-theme="orange-paper">orange</button>
+        <button type="button" data-theme="paper-orange">paper</button>
+        <button type="button" data-theme="tan-black">tan</button>
+        <button type="button" data-theme="black-orange">black</button>
+        <button type="button" data-theme="white-orange">white</button>
+        <button type="button" data-theme="orange-black">deep</button>
+        <button type="button" data-theme="light-deep">light deep</button>
+        <button type="button" data-theme="deep-tan">deep tan</button>
+        <button type="button" data-theme="tan-orange">tan orange</button>
+        <button type="button" data-theme="paper-black">ink</button>
+        <button type="button" data-theme="tan-white">pale</button>
+            <button type="button" data-open-custom>make your own</button>
+    </div>
+    <section class="custom-palette" data-custom-palette hidden aria-label="Custom palette editor">
+        <div class="custom-palette-bar">
+            <h2>Palette</h2>
+            <button type="button" data-close-custom>Close</button>
+        </div>
+        <label>Main <input type="color" data-color-var="accent"></label>
+        <label>Background <input type="color" data-color-var="bg"></label>
+        <label>Text <input type="color" data-color-var="fg"></label>
+        <label>Surface <input type="color" data-color-var="surface"></label>
+        <label>Icon <input type="color" data-color-var="iconColor"></label>
+        <label>Hover Text <input type="color" data-color-var="linkHover"></label>
+    </section>
+    <header class="icon-tabs" aria-label="Feller pages">
+        <a class="brand-dot" href="../" aria-label="Feller mockup home">
+            <img src="../../FellerArtwork/FellerLogo.png" alt="Feller">
+        </a>
+        <nav>
+            <a class="tab-link" href="../music/" title="Music" aria-label="Music"><span class="icon icon-guitar" aria-hidden="true"></span></a>
+            <a class="tab-link" href="../shows/" title="Shows" aria-label="Shows"><span class="icon icon-drums" aria-hidden="true"></span></a>
+            <a class="tab-link is-active" href="../photos/" title="Photos" aria-label="Photos"><span class="icon icon-microphone" aria-hidden="true"></span></a>
+            <a class="tab-link" href="../artwork/" title="Artwork" aria-label="Artwork"><span class="icon icon-record" aria-hidden="true"></span></a>
+            <a class="tab-link" href="../contact/" title="Contact" aria-label="Contact"><span class="icon icon-headphones" aria-hidden="true"></span></a>
+            <a class="tab-link" href="../video/" title="Video" aria-label="Video"><span class="icon icon-video" aria-hidden="true"></span></a>
+        </nav>
+    </header>
+
+    <main class="single-page">
+        <section class="page-title">
+            <h1>PHOTOS</h1>
+        </section>
+        <div data-content-type="photos" data-source="content/photos.txt" data-asset-root="pictures/"></div>
+        <section class="image-viewer" data-image-viewer hidden aria-label="Image viewer">
+            <button class="image-viewer-x" type="button" data-image-close aria-label="Close image viewer">X</button>
+            <div class="image-viewer-bar">
+                <h2 class="image-viewer-title">Photo</h2>
+                <div class="image-viewer-controls">
+                    <button type="button" data-image-prev>Prev</button>
+                    <button type="button" data-image-next>Next</button>
+                    <button type="button" data-image-zoom-out>Zoom -</button>
+                    <button type="button" data-image-zoom-in>Zoom +</button>
+                    <button type="button" data-image-reset>Reset</button>
+                    <button type="button" data-image-fullscreen>Full</button>
+                </div>
+            </div>
+            <div class="image-viewer-stage">
+                <img src="" alt="">
+            </div>
+        </section>
+    </main>
+    <script src="../theme.js"></script>
+    <script src="../shared/content-loader.js"></script>
+</body>
+</html>
