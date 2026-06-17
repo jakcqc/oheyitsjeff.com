@@ -3,7 +3,7 @@ const openCustomButton = document.querySelector('[data-open-custom]');
 const closeCustomButton = document.querySelector('[data-close-custom]');
 const customPanel = document.querySelector('[data-custom-palette]');
 const colorInputs = document.querySelectorAll('[data-color-var]');
-const defaultTheme = 'orange-paper';
+const defaultTheme = 'deep-tan';
 const themeStorageKey = 'feller-icon-theme';
 const customStorageKey = 'feller-custom-theme';
 
@@ -66,7 +66,7 @@ const palettes = {
     },
     'deep-tan': {
         bg: '#eb6b28',
-        accent: '#eb6b28',
+        accent: '#d8ccb2',
         fg: '#000000',
         surface: '#d8ccb2',
         iconColor: '#d8ccb2',
