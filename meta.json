@@ -1,0 +1,10 @@
+{
+  "colors": {
+    "main": "#eb6b28",
+    "accent": "#eb6b28",
+    "text": "#000000",
+    "background": "#ffffff"
+  },
+  "fonts": ["Helvetica", "Arial", "sans-serif"],
+  "theme":"retro"
+}

@@ -1,0 +1,15 @@
+{
+  "description": "Describes artwork entries shown on the artwork tab, with each line mapping a title to an image filename.",
+  "userText": "Edit your artwork",
+  "type": {
+    "title": "string label before the first colon",
+    "filename": "image filename string after the first colon stored in artwork/pictures"
+  },
+  "example": [
+    {
+      "title": "Dependable Twins",
+      "filename": "DependableTwins.PNG"
+    }
+  ],
+  "parseOption": "single"
+}

@@ -1,0 +1,19 @@
+{
+  "description": "Describes video entries shown on the video tab, with each line mapping a label to a YouTube URL or local video file.",
+  "userText": "Edit your videos",
+  "type": {
+    "title": "string label before the first colon; can include / followed by display text",
+    "source": "URL string or local .mp4 filename after the first colon"
+  },
+  "example": [
+    {
+      "title": "Official Video",
+      "source": "https://www.youtube.com/watch?v=example"
+    },
+    {
+      "title": "Teaser",
+      "source": "fellerAudioTreeClip.mp4"
+    }
+  ],
+  "parseOption": "single"
+}

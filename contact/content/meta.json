@@ -1,0 +1,15 @@
+{
+  "description": "Describes contact links shown on the contact tab, with each line mapping a label to a URL.",
+  "userText": "Edit your contact links",
+  "type": {
+    "title": "string label before the first colon",
+    "url": "URL string or relative path after the first colon"
+  },
+  "example": [
+    {
+      "title": "Instagram",
+      "url": "https://www.instagram.com/fellerband/"
+    }
+  ],
+  "parseOption": "single"
+}

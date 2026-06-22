@@ -1,11 +1,4 @@
-Dependable Twins
-DependableTwins.PNG
-
-Tape
-Tape_mockup_p.png
-
-Hockey Flyer
-feller_hockey_flyer.jpeg
-
-The Hideout
-TheHideout.PNG
+Dependable Twins:DependableTwins.PNG
+Tape:Tape_mockup_p.png
+Hockey Flyer:feller_hockey_flyer.jpeg
+The Hideout:TheHideout.PNG

@@ -1,0 +1,15 @@
+{
+  "description": "Describes music links shown on the music tab, with each line mapping a label to a URL.",
+  "userText": "Edit your music",
+  "type": {
+    "title": "string label before the first colon",
+    "url": "URL string after the first colon"
+  },
+  "example": [
+    {
+      "title": "Goya",
+      "url": "https://open.spotify.com/artist/example"
+    }
+  ],
+  "parseOption": "single"
+}

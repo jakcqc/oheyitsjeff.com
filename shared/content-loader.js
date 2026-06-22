@@ -8,6 +8,17 @@ const readTextFile = async (source) => {
     return response.text();
 };
 
+const clearIfEmpty = (container, text) => {
+    if (text.trim().length > 0) {
+        container.hidden = false;
+        return false;
+    }
+
+    container.replaceChildren();
+    container.hidden = true;
+    return true;
+};
+
 const splitParagraphs = (text) => text
     .split(/\r?\n\s*\r?\n/)
     .map((paragraph) => paragraph.trim())
@@ -33,6 +44,7 @@ const parseLinkLine = (line) => {
 
 const showContentError = (container, error) => {
     container.innerHTML = '';
+    container.hidden = false;
     const message = document.createElement('p');
     message.className = 'content-error';
     message.textContent = `${error.message}. Serve this folder with a local web server so text files can be read.`;
@@ -41,6 +53,11 @@ const showContentError = (container, error) => {
 
 const renderLinks = async (container) => {
     const text = await readTextFile(container.dataset.source);
+
+    if (clearIfEmpty(container, text)) {
+        return;
+    }
+
     const listClass = container.dataset.listClass || 'contact-links';
     const wrapper = document.createElement(container.dataset.ordered === 'true' ? 'ol' : 'section');
     wrapper.className = listClass;
@@ -70,6 +87,11 @@ const renderLinks = async (container) => {
 
 const renderShows = async (container) => {
     const text = await readTextFile(container.dataset.source);
+
+    if (clearIfEmpty(container, text)) {
+        return;
+    }
+
     const wrapper = document.createElement('section');
     wrapper.className = 'show-list';
     wrapper.setAttribute('aria-label', 'Show listings');
@@ -100,6 +122,11 @@ const renderShows = async (container) => {
 
 const renderPhotos = async (container) => {
     const text = await readTextFile(container.dataset.source);
+
+    if (clearIfEmpty(container, text)) {
+        return;
+    }
+
     const root = container.dataset.assetRoot || 'pictures/';
     const wrapper = document.createElement('section');
     wrapper.className = 'photo-grid';
@@ -225,13 +252,28 @@ const requestViewerFullscreen = () => {
 
 const renderArtwork = async (container) => {
     const text = await readTextFile(container.dataset.source);
+
+    if (clearIfEmpty(container, text)) {
+        return;
+    }
+
     const root = container.dataset.assetRoot || 'pictures/';
     const wrapper = document.createElement('section');
     wrapper.className = 'artwork-grid';
+    const lineEntries = splitLines(text).map(parseLinkLine).filter(Boolean);
+    const entries = lineEntries.length > 0
+        ? lineEntries.map((entry) => ({
+            title: entry.title,
+            filename: entry.url,
+            descriptionLines: []
+        }))
+        : splitParagraphs(text).map((paragraph) => {
+            const [title, filename, ...descriptionLines] = splitLines(paragraph);
 
-    splitParagraphs(text).forEach((paragraph) => {
-        const [title, filename, ...descriptionLines] = splitLines(paragraph);
+            return { title, filename, descriptionLines };
+        });
 
+    entries.forEach(({ title, filename, descriptionLines }) => {
         if (!title || !filename) {
             return;
         }
@@ -291,6 +333,11 @@ const openVideoPlayer = (entry) => {
 
 const renderVideos = async (container) => {
     const text = await readTextFile(container.dataset.source);
+
+    if (clearIfEmpty(container, text)) {
+        return;
+    }
+
     const root = container.dataset.assetRoot || 'pictures/';
     const wrapper = document.createElement('section');
     wrapper.className = 'video-grid';

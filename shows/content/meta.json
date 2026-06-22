@@ -1,0 +1,20 @@
+{
+  "description": "Describes show listings shown on the shows tab, including venue details, date, time, price, and optional show link.",
+  "userText": "Edit your shows",
+  "type": {
+    "details": "array of strings; each string renders as one show detail line",
+    "url": "optional URL string; first http or https line in the show block"
+  },
+  "example": [
+    {
+        "Date": "Friday July 12",
+        "Venue Name": "Venue Name",
+        "Place": "City, ST",
+        "Time":"8:00 PM",
+        "Price":"$10",
+      "Link":"https://example.com/show"
+    }
+  ],
+  "parseOption": "double",
+  "entryMode": "block"
+}

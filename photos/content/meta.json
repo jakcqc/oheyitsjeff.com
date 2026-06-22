@@ -1,0 +1,14 @@
+{
+  "description": "Describes photo filenames shown on the photos tab, one image filename per line.",
+  "userText": "Edit your photos",
+  "type": {
+    "filename": "image filename string stored in photos/pictures"
+  },
+  "example": [
+    {
+      "filename": "feller_doorhinge.jpeg"
+    }
+  ],
+  "parseOption": "single",
+  "labels": "minimal"
+}
