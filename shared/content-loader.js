@@ -158,6 +158,34 @@ const renderPhotos = async (container) => {
     container.replaceChildren(wrapper);
 };
 
+const renderShowPictures = async (container) => {
+    const text = await readTextFile(container.dataset.source);
+
+    if (clearIfEmpty(container, text)) {
+        return;
+    }
+
+    const root = container.dataset.assetRoot || 'pictures/';
+    const wrapper = document.createElement('section');
+    wrapper.className = 'show-picture-grid';
+
+    splitLines(text).forEach((filename, index) => {
+        const image = document.createElement('img');
+        const title = filename.replace(/\.[^.]+$/, '').replaceAll('_', ' ');
+
+        image.src = `${root}${filename}`;
+        image.alt = title;
+
+        if (index === 0 || index % 4 === 0) {
+            image.classList.add('wide');
+        }
+
+        wrapper.append(image);
+    });
+
+    container.replaceChildren(wrapper);
+};
+
 let activePhotos = [];
 let activePhotoIndex = 0;
 let activeZoom = 1;
@@ -392,6 +420,7 @@ const renderVideos = async (container) => {
 const renderers = {
     links: renderLinks,
     shows: renderShows,
+    showPictures: renderShowPictures,
     photos: renderPhotos,
     artwork: renderArtwork,
     videos: renderVideos
