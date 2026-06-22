@@ -1,12 +1,3 @@
-const themeButtons = document.querySelectorAll('[data-theme]');
-const openCustomButton = document.querySelector('[data-open-custom]');
-const closeCustomButton = document.querySelector('[data-close-custom]');
-const customPanel = document.querySelector('[data-custom-palette]');
-const colorInputs = document.querySelectorAll('[data-color-var]');
-const defaultTheme = 'white-orange';
-const themeStorageKey = 'feller-icon-theme';
-const customStorageKey = 'feller-custom-theme';
-
 const palettes = {
     'orange-paper': {
         bg: '#f5b78b',
@@ -43,7 +34,7 @@ const palettes = {
     'white-orange': {
         bg: '#ffffff',
         accent: '#eb6b28',
-        fg: '#000000',
+        fg: '#eb6b28',
         surface: '#f6f3ea',
         iconColor: '#eb6b28',
         linkHover: '#ffffff'
@@ -107,27 +98,10 @@ const cssVarNames = {
     linkHover: '--link-hover'
 };
 
-const getSavedCustomPalette = () => {
-    try {
-        return JSON.parse(localStorage.getItem(customStorageKey)) || {};
-    } catch {
-        return {};
-    }
-};
+const defaultTheme = 'white-orange';
 
-const saveCustomPalette = (palette) => {
-    localStorage.setItem(customStorageKey, JSON.stringify(palette));
-};
-
-const setInputs = (palette) => {
-    colorInputs.forEach((input) => {
-        input.value = palette[input.dataset.colorVar] || '#000000';
-    });
-};
-
-const applyPalette = (paletteName, overrides = {}) => {
-    const basePalette = palettes[paletteName] || palettes[defaultTheme];
-    const palette = { ...basePalette, ...overrides };
+const applyPalette = (paletteName = defaultTheme) => {
+    const palette = palettes[paletteName];
 
     Object.entries(cssVarNames).forEach(([key, cssName]) => {
         document.documentElement.style.setProperty(cssName, palette[key]);
@@ -135,44 +109,6 @@ const applyPalette = (paletteName, overrides = {}) => {
     });
 
     document.body.dataset.iconTheme = paletteName;
-    localStorage.setItem(themeStorageKey, paletteName);
-    setInputs(palette);
 };
 
-const currentTheme = () => localStorage.getItem(themeStorageKey) || defaultTheme;
-
-applyPalette(currentTheme(), getSavedCustomPalette()[currentTheme()]);
-
-themeButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-        applyPalette(button.dataset.theme, getSavedCustomPalette()[button.dataset.theme]);
-    });
-});
-
-openCustomButton?.addEventListener('click', () => {
-    if (customPanel) {
-        customPanel.hidden = false;
-    }
-});
-
-closeCustomButton?.addEventListener('click', () => {
-    if (customPanel) {
-        customPanel.hidden = true;
-    }
-});
-
-colorInputs.forEach((input) => {
-    input.addEventListener('input', () => {
-        const paletteName = currentTheme();
-        const customPalettes = getSavedCustomPalette();
-        const customPalette = {
-            ...palettes[paletteName],
-            ...customPalettes[paletteName],
-            [input.dataset.colorVar]: input.value
-        };
-
-        customPalettes[paletteName] = customPalette;
-        saveCustomPalette(customPalettes);
-        applyPalette(paletteName, customPalette);
-    });
-});
+applyPalette();
