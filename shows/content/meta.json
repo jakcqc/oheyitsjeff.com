@@ -7,12 +7,12 @@
   },
   "example": [
     {
-        "Date": "Friday July 12",
-        "Venue Name": "Venue Name",
-        "Place": "City, ST",
-        "Time":"8:00 PM",
-        "Price":"$10",
-      "Link":"https://example.com/show"
+      "Date": "Friday July 12",
+      "Venue Name": "Venue Name",
+      "Place": "City, ST",
+      "Time": "8:00 PM",
+      "Price": "$10",
+      "Link": "https://example.com/show"
     }
   ],
   "parseOption": "double",

@@ -1,4 +1,4 @@
-Instagram:https://www.instagram.com/fellerband/
-Spotify:https://open.spotify.com/artist/7z9WnI90TkpRGJrJ0g68bw?si=HgCijLyQRo2Uyz7H6b6TqQ
-Bandcamp:https://tr.ee/Tth-xbvsDi
-Current Site:../../index.html
+instagram:https://www.instagram.com/fellerband/
+spotify:https://open.spotify.com/artist/7z9WnI90TkpRGJrJ0g68bw?si=HgCijLyQRo2Uyz7H6b6TqQ
+bandcamp:https://fellerband.bandcamp.com/
+apple music:https://music.apple.com/us/artist/feller/1745505582
