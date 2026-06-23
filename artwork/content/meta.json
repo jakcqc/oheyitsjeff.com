@@ -3,7 +3,8 @@
   "userText": "Edit your artwork",
   "type": {
     "title": "string label before the first colon",
-    "filename": "image filename string after the first colon stored in artwork/pictures"
+    "filename": "image filename string after the first colon stored in artwork/pictures",
+    "format": "image display mode applied to all artwork entries; options: cropped, full, fit"
   },
   "example": [
     {
@@ -11,5 +12,7 @@
       "filename": "DependableTwins.PNG"
     }
   ],
+  "format": "cropped",
+  "formatOptions": ["cropped", "full", "fit"],
   "parseOption": "single"
 }

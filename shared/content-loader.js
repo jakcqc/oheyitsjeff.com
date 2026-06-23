@@ -42,6 +42,16 @@ const parseLinkLine = (line) => {
     };
 };
 
+const getImageFormat = (container, fallback = 'cropped') => {
+    const format = container.dataset.imageFormat || fallback;
+
+    return ['cropped', 'full', 'fit'].includes(format) ? format : fallback;
+};
+
+const applyImageFormat = (wrapper, format) => {
+    wrapper.classList.add(`image-format-${format}`);
+};
+
 const showContentError = (container, error) => {
     container.innerHTML = '';
     container.hidden = false;
@@ -128,8 +138,10 @@ const renderPhotos = async (container) => {
     }
 
     const root = container.dataset.assetRoot || 'pictures/';
+    const format = getImageFormat(container, 'cropped');
     const wrapper = document.createElement('section');
     wrapper.className = 'photo-grid';
+    applyImageFormat(wrapper, format);
     const photos = splitLines(text).map((filename) => ({
         filename,
         src: `${root}${filename}`,
@@ -166,8 +178,10 @@ const renderShowPictures = async (container) => {
     }
 
     const root = container.dataset.assetRoot || 'pictures/';
+    const format = getImageFormat(container, 'fit');
     const wrapper = document.createElement('section');
     wrapper.className = 'show-picture-grid';
+    applyImageFormat(wrapper, format);
 
     splitLines(text).forEach((filename, index) => {
         const image = document.createElement('img');
@@ -286,8 +300,10 @@ const renderArtwork = async (container) => {
     }
 
     const root = container.dataset.assetRoot || 'pictures/';
+    const format = getImageFormat(container, 'cropped');
     const wrapper = document.createElement('section');
     wrapper.className = 'artwork-grid';
+    applyImageFormat(wrapper, format);
     const lineEntries = splitLines(text).map(parseLinkLine).filter(Boolean);
     const entries = lineEntries.length > 0
         ? lineEntries.map((entry) => ({
@@ -361,14 +377,20 @@ const openVideoPlayer = (entry) => {
 
 const renderVideos = async (container) => {
     const text = await readTextFile(container.dataset.source);
+    const thumbnailText = container.dataset.thumbnailSource
+        ? await readTextFile(container.dataset.thumbnailSource)
+        : '';
 
     if (clearIfEmpty(container, text)) {
         return;
     }
 
     const root = container.dataset.assetRoot || 'pictures/';
+    const format = getImageFormat(container, 'cropped');
+    const thumbnails = splitLines(thumbnailText).map((line) => parseLinkLine(line)?.url || line);
     const wrapper = document.createElement('section');
     wrapper.className = 'video-grid';
+    applyImageFormat(wrapper, format);
 
     splitParagraphs(text).flatMap(splitLines).forEach((line, index) => {
         const linkData = parseLinkLine(line);
@@ -383,19 +405,24 @@ const renderVideos = async (container) => {
         button.className = 'video-card';
         button.dataset.videoSource = linkData.url;
 
-        const image = document.createElement('img');
-        image.src = index % 2 === 0 ? `${root}IMG_3.png` : `${root}feller_doorhinge.jpeg`;
-        image.alt = title;
+        const thumbnail = thumbnails[index];
+        const image = thumbnail ? document.createElement('img') : null;
+
+        if (image) {
+            image.src = `${root}${thumbnail}`;
+            image.alt = title;
+        }
 
         const label = document.createElement('span');
         label.textContent = title;
+        const cardContent = image ? [image, label] : [label];
 
         if (titleText) {
             const description = document.createElement('p');
             description.textContent = titleText;
-            button.append(image, label, description);
+            button.append(...cardContent, description);
         } else {
-            button.append(image, label);
+            button.append(...cardContent);
         }
 
         button.addEventListener('click', () => {

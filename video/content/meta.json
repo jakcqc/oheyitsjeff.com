@@ -3,7 +3,9 @@
   "userText": "Edit your videos",
   "type": {
     "title": "string label before the first colon; can include / followed by display text",
-    "source": "URL string or local .mp4 filename after the first colon"
+    "source": "URL string or local .mp4 filename after the first colon",
+    "thumbnail": "matching image filename from thumbnails.txt stored in video/pictures",
+    "thumbnailFormat": "image display mode applied to all video thumbnails; options: cropped, full, fit"
   },
   "example": [
     {
@@ -15,5 +17,8 @@
       "source": "fellerAudioTreeClip.mp4"
     }
   ],
+  "thumbnailSource": "thumbnails.txt",
+  "thumbnailFormat": "cropped",
+  "formatOptions": ["cropped", "full", "fit"],
   "parseOption": "single"
 }

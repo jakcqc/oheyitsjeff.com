@@ -5,11 +5,11 @@
     --paper: rgb(246, 243, 234);
     --black: rgb(0, 0, 0);
     --white: rgb(255, 255, 255);
-    --bg: var(--soft-orange);
+    --bg: var(--white);
     --accent: var(--orange);
-    --fg: var(--black);
+    --fg: var(--orange);
     --surface: var(--paper);
-    --icon-color: var(--black);
+    --icon-color: var(--orange);
     --link-hover: var(--white);
 }
 
@@ -306,7 +306,6 @@ h1 {
 .show-picture-grid img {
     width: 100%;
     aspect-ratio: 1 / 1;
-    object-fit: cover;
     filter: grayscale(100%) contrast(1.08);
 }
 
@@ -322,7 +321,22 @@ h1 {
 
 .artwork-grid img {
     aspect-ratio: 1 / 1;
+}
+
+.image-format-cropped img {
     object-fit: cover;
+}
+
+.image-format-fit img {
+    object-fit: contain;
+}
+
+.image-format-full img,
+.photo-grid.image-format-full .wide img,
+.show-picture-grid.image-format-full img.wide {
+    aspect-ratio: auto;
+    height: auto;
+    object-fit: contain;
 }
 
 .artwork-grid span {
@@ -390,7 +404,6 @@ h1 {
 .video-card img {
     width: 100%;
     aspect-ratio: 16 / 10;
-    object-fit: cover;
     border: 5px dotted var(--accent);
     background: var(--surface);
     filter: grayscale(100%) contrast(1.08);
@@ -743,7 +756,7 @@ body[data-icon-theme="black-orange"] {
 body[data-icon-theme="white-orange"] {
     --bg: var(--white);
     --accent: var(--orange);
-    --fg: var(--black);
+    --fg: var(--orange);
     --surface: var(--paper);
     --icon-color: var(--orange);
     --link-hover: var(--white);

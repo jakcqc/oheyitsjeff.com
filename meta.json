@@ -5,6 +5,7 @@
     "text": "#000000",
     "background": "#ffffff"
   },
+  "imageFormats": ["cropped", "full", "fit"],
   "fonts": ["Helvetica", "Arial", "sans-serif"],
   "theme":"retro"
 }

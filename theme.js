@@ -110,5 +110,3 @@ const applyPalette = (paletteName = defaultTheme) => {
 
     document.body.dataset.iconTheme = paletteName;
 };
-
-applyPalette();
